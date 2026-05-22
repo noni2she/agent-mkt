@@ -1,0 +1,11 @@
+node_modules/
+dist/
+out/
+.env
+.env.local
+data/*.json
+!data/.gitkeep
+*.log
+.DS_Store
+.playwright-profile/
+.cdp-profile/

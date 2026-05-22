@@ -1,0 +1,31 @@
+# 商業規範 (Constraints) — 注入 prompt 並由 generator 後驗
+# 違反任一 hard rule 的草稿會被標記，不進審核佇列（計入「違反比例」指標）
+
+hard_rules:
+  - 不得提及競品品牌名稱
+  - 不得承諾療效、效果、保證字眼（最、第一、絕對、根治）
+  - 不得涉及政治、宗教、性別爭議話題
+  - 不得提供醫療、法律、投資建議
+  - 不得透露為 AI 生成或自動化操作
+  - 留言不得包含外部連結（PoC 期間一律禁止）
+
+soft_rules:
+  - 優先回應與品牌主題相關的內容
+  - 避免在負面情緒貼文下硬推產品
+  - 一則留言最多一個 call-to-action，且需柔性
+
+# Popular 文章判定規則（scout 用）
+popular_criteria:
+  min_likes: 500
+  min_replies: 100
+  max_post_age_hours: 720 # 約 1 個月；留言數門檻高，代表持續活躍討論中
+  min_author_followers: 1000 # 過濾機器人/小帳
+  scout_target_per_keyword: 5 # 每個關鍵字目標收集幾篇
+  topic_keywords: [股票, 房地產]
+  exclude_keywords: [徵才, 業配爭議, 抽獎]
+
+# 安全護欄
+safety:
+  require_human_approval_before_send: true # 不可關閉
+  max_replies_per_session: 10
+  cooldown_minutes_between_replies: [4, 11] # 隨機區間

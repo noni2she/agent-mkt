@@ -1,0 +1,45 @@
+{
+  "name": "agent-mkt",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI 小編 Agent for Threads — non-commercial PoC (style learning + human-in-the-loop popular-post replies)",
+  "type": "module",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "scout": "node --env-file=.env --import tsx/esm scripts/run-scout.ts",
+    "scout:mcp": "node --env-file=.env --import tsx/esm scripts/run-scout-mcp.ts",
+    "playwright:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@openai/agents": "^0.11.4",
+    "better-sqlite3": "^11.10.0",
+    "node-cron": "^3.0.3",
+    "openai": "^4.77.0",
+    "playwright": "^1.49.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "yaml": "^2.6.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.5",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.3.0",
+    "electron-vite": "^2.3.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  }
+}
