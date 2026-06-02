@@ -60,4 +60,10 @@ describe("isPopular", () => {
     const old = new Date(Date.now() - 48 * 3600_000).toISOString();
     expect(isPopular({ ...base, posted_at: old }, rules).ok).toBe(false);
   });
+  it("accepts likes exactly at the minimum threshold", () => {
+    expect(isPopular({ ...base, likes: 100 }, rules).ok).toBe(true);
+  });
+  it("accepts replies exactly at the minimum threshold", () => {
+    expect(isPopular({ ...base, replies: 50 }, rules).ok).toBe(true);
+  });
 });
