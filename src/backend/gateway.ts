@@ -23,13 +23,15 @@ export class Gateway {
 
   /** 啟動並回傳實際監聽的 port（傳 0 時由 OS 配）。 */
   listen(): Promise<number> {
-    return new Promise((resolve) => {
-      this.wss = new WebSocketServer({ port: this.port }, () => {
-        const addr = this.wss!.address();
+    return new Promise((resolve, reject) => {
+      const wss = new WebSocketServer({ port: this.port }, () => {
+        const addr = wss.address();
         const actual = typeof addr === "object" && addr ? addr.port : this.port;
         resolve(actual);
       });
-      this.wss.on("connection", (ws) => this.onConnection(ws));
+      wss.once("error", (err) => reject(err));
+      wss.on("connection", (ws) => this.onConnection(ws));
+      this.wss = wss;
     });
   }
 
@@ -43,6 +45,8 @@ export class Gateway {
         return;
       }
       if (msg.type === "hello") {
+        // 同一 tenant 若有新連線，採 last-write-wins 覆寫。舊 socket 的 close handler 以
+        // identity guard 確保不誤刪新連線；舊連線殘留的 pending 會在 timeout 後自然清除。
         tenant = msg.tenant;
         this.conns.set(tenant, ws);
         return;
@@ -73,7 +77,13 @@ export class Gateway {
         reject(new Error(`command timeout for tenant ${tenant} (${command.action})`));
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
-      ws.send(JSON.stringify(env));
+      try {
+        ws.send(JSON.stringify(env));
+      } catch (err) {
+        clearTimeout(timer);
+        this.pending.delete(id);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
     });
   }
 
@@ -90,9 +100,13 @@ export class Gateway {
     }
     this.pending.clear();
     this.conns.clear();
+    const wss = this.wss;
+    this.wss = null;
     return new Promise((resolve) => {
-      if (!this.wss) return resolve();
-      this.wss.close(() => resolve());
+      if (!wss) return resolve();
+      // Terminate all active connections so wss.close() callback fires promptly.
+      for (const client of wss.clients) client.terminate();
+      wss.close(() => resolve());
     });
   }
 }

@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import WebSocket from "ws";
 import { Gateway } from "./gateway.js";
-import { parseClientMessage } from "../core/protocol.js";
 
 let gw: Gateway;
 afterEach(async () => { await gw?.close(); });
@@ -10,14 +9,16 @@ afterEach(async () => { await gw?.close(); });
 function fakeHands(port: number, tenant: string): Promise<WebSocket> {
   return new Promise((resolve) => {
     const ws = new WebSocket(`ws://127.0.0.1:${port}`);
-    ws.on("open", () => ws.send(JSON.stringify({ type: "hello", tenant })));
+    ws.on("open", () => {
+      ws.send(JSON.stringify({ type: "hello", tenant }));
+      setTimeout(() => resolve(ws), 50);
+    });
     ws.on("message", (data) => {
       const msg = JSON.parse(data.toString());
       if (msg.type === "request" && msg.command.action === "ping") {
         ws.send(JSON.stringify({ type: "response", id: msg.id, status: "ok", payload: "pong" }));
       }
     });
-    ws.on("open", () => setTimeout(() => resolve(ws), 50));
   });
 }
 
@@ -59,6 +60,24 @@ describe("Gateway", () => {
     expect(res.payload).toBe("pong");
     ws.close(); hands.close();
   });
-});
 
-void parseClientMessage;
+  it("isConnected reflects registration state", async () => {
+    gw = new Gateway(0);
+    const port = await gw.listen();
+    expect(gw.isConnected("us")).toBe(false);
+    const hands = await fakeHands(port, "us");
+    expect(gw.isConnected("us")).toBe(true);
+    hands.close();
+  });
+
+  it("close() rejects in-flight commands", async () => {
+    gw = new Gateway(0);
+    const port = await gw.listen();
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    await new Promise<void>((r) => ws.on("open", () => { ws.send(JSON.stringify({ type: "hello", tenant: "us" })); setTimeout(r, 50); }));
+    const inflight = gw.sendCommand("us", { action: "ping" }, 5000);
+    await gw.close();
+    await expect(inflight).rejects.toThrow(/closing/i);
+    ws.close();
+  });
+});
