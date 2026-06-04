@@ -9,3 +9,5 @@ data/*.json
 .DS_Store
 .playwright-profile/
 .cdp-profile/
+.output
+.wxt
