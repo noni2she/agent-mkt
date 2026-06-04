@@ -4,6 +4,7 @@ import { z } from "zod";
 export const ScoutCriteriaSchema = z.object({
   minLikes: z.number().default(100),
   excludeKeywords: z.array(z.string()).default([]),
+  maxAgeHours: z.number().optional(), // 未設 = 不限時效
 });
 export type ScoutCriteria = z.infer<typeof ScoutCriteriaSchema>;
 
@@ -60,6 +61,7 @@ export const ScoutCandidateSchema = z.object({
   text: z.string(),
   likes: z.number(),
   replies: z.number(),
+  posted_at: z.string(),
   popular_reason: z.string(),
 });
 export type ScoutCandidate = z.infer<typeof ScoutCandidateSchema>;

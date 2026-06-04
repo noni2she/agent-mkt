@@ -11,6 +11,7 @@ function criteriaFor(_tenant: string) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+    maxAgeHours: process.env.DEV_MAX_AGE_HOURS ? Number(process.env.DEV_MAX_AGE_HOURS) : undefined,
   };
 }
 
@@ -38,7 +39,7 @@ server.listen(PORT, () => {
     setTimeout(async () => {
       try {
         const criteria = criteriaFor("us");
-        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} exclude=[${criteria.excludeKeywords.join(",")}]`);
+        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}]`);
         const r = await queue.enqueue("us", { action: "scout", keyword, criteria }, 60_000);
         const posts = Array.isArray(r.payload) ? r.payload : [];
         console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);

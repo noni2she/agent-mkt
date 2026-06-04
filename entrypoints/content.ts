@@ -34,6 +34,7 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
   const maxScanned = b?.maxScanned ?? 60;
   const minLikes = criteria?.minLikes ?? 100;
   const excludeKeywords = criteria?.excludeKeywords ?? [];
+  const maxAgeHours = criteria?.maxAgeHours;
 
   const out: ScoutCandidate[] = [];
   const seen = new Set<string>();
@@ -57,8 +58,12 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
       const likes = parseCount(aria);
       const author = (card.querySelector('a[href^="/@"]')?.textContent ?? "unknown").replace(/^@/, "").trim();
 
+      const datetime = card.querySelector("time")?.getAttribute("datetime") ?? "";
+      const ageHours = datetime ? (Date.now() - new Date(datetime).getTime()) / 3_600_000 : Infinity;
+
       if (likes < minLikes) continue;
       if (excludeKeywords.some((k) => text.includes(k))) continue;
+      if (maxAgeHours != null && ageHours > maxAgeHours) continue;
 
       out.push({
         id,
@@ -67,13 +72,15 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
         text,
         likes,
         replies: 0,
-        popular_reason: `👍${likes}`,
+        posted_at: datetime || new Date().toISOString(),
+        popular_reason: `👍${likes} ${isFinite(ageHours) ? Math.round(ageHours) + "h" : ""}`.trimEnd(),
       });
     }
     window.scrollBy(0, 700 + Math.floor(Math.random() * 400));
     await sleep(jitter(1500));
     scrolls += 1;
   }
-  console.log(`[scout] keyword="${keyword}" minLikes=${minLikes} exclude=[${excludeKeywords.join(",")}] scanned=${scanned} scrolls=${scrolls} candidates=${out.length}`);
+  console.log(`[scout] 套用條件 minLikes=${minLikes} maxAgeHours=${maxAgeHours ?? "∞"} exclude=[${excludeKeywords.join(", ")}]`);
+  console.log(`[scout] keyword="${keyword}" scanned=${scanned} scrolls=${scrolls} candidates=${out.length}`);
   return out;
 }
