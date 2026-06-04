@@ -1,22 +1,30 @@
-import { Gateway } from "./gateway.js";
+import { CommandQueue } from "./commandQueue.js";
+import { createPollServer } from "./server.js";
 
-const PORT = Number(process.env.WS_PORT ?? 18900);
+const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
-async function main() {
-  const gw = new Gateway(PORT);
-  const port = await gw.listen();
-  console.log(`✅ agent-mkt backend gateway listening on ws://127.0.0.1:${port}`);
+const queue = new CommandQueue();
+const server = createPollServer(queue);
 
-  const shutdown = async () => {
-    console.log("\n關閉 gateway…");
-    await gw.close();
-    process.exit(0);
-  };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
-}
+server.listen(PORT, () => {
+  console.log(`✅ agent-mkt backend polling server on http://127.0.0.1:${PORT}`);
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
+  if (process.env.WS_DEV_PING === "1") {
+    console.log("[dev] WS_DEV_PING：每 5s 入隊一個 ping 給 tenant 'us'");
+    setInterval(async () => {
+      try {
+        const r = await queue.enqueue("us", { action: "ping" }, 20_000);
+        console.log("[dev] ping → response:", r.status, r.payload);
+      } catch (e) {
+        console.log("[dev] ping:", (e as Error).message);
+      }
+    }, 5_000);
+  }
 });
+
+const shutdown = () => {
+  console.log("\n關閉 server…");
+  server.close(() => process.exit(0));
+};
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
