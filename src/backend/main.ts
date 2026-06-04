@@ -20,6 +20,23 @@ server.listen(PORT, () => {
       }
     }, 5_000);
   }
+
+  if (process.env.DEV_SCOUT) {
+    const keyword = process.env.DEV_SCOUT;
+    console.log(`[dev] DEV_SCOUT：10s 後對 tenant 'us' 下 scout("${keyword}")`);
+    setTimeout(async () => {
+      try {
+        const r = await queue.enqueue("us", { action: "scout", keyword }, 60_000);
+        const posts = Array.isArray(r.payload) ? r.payload : [];
+        console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
+        for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {
+          console.log(`  - @${p.author_handle} 👍${p.likes} ${p.text.slice(0, 40).replace(/\n/g, " ")}…`);
+        }
+      } catch (e) {
+        console.log("[dev] scout:", (e as Error).message);
+      }
+    }, 10_000);
+  }
 });
 
 const shutdown = () => {
