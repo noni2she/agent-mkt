@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+/** 海巡可生效的過濾條件（min_likes / exclude_keywords；replies/年齡/追蹤數 DOM 不穩，暫不納入）。 */
+export const ScoutCriteriaSchema = z.object({
+  minLikes: z.number().default(100),
+  excludeKeywords: z.array(z.string()).default([]),
+});
+export type ScoutCriteria = z.infer<typeof ScoutCriteriaSchema>;
+
 /** 海巡 budget（先到先停）。 */
 export const ScoutBudgetSchema = z.object({
   targetCandidates: z.number().default(10),
@@ -14,6 +21,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("scout"),
     keyword: z.string(),
+    criteria: ScoutCriteriaSchema.partial().optional(),
     budget: ScoutBudgetSchema.partial().optional(),
   }),
 ]);

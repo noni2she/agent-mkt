@@ -3,6 +3,17 @@ import { createPollServer } from "./server.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
+/** 取某租戶的海巡 criteria。現在用 env/預設；Plan 4 改為從 tenant_config store 讀。 */
+function criteriaFor(_tenant: string) {
+  return {
+    minLikes: Number(process.env.DEV_MIN_LIKES ?? 100),
+    excludeKeywords: (process.env.DEV_EXCLUDE ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  };
+}
+
 const queue = new CommandQueue();
 const server = createPollServer(queue);
 
@@ -26,7 +37,9 @@ server.listen(PORT, () => {
     console.log(`[dev] DEV_SCOUT：10s 後對 tenant 'us' 下 scout("${keyword}")`);
     setTimeout(async () => {
       try {
-        const r = await queue.enqueue("us", { action: "scout", keyword }, 60_000);
+        const criteria = criteriaFor("us");
+        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} exclude=[${criteria.excludeKeywords.join(",")}]`);
+        const r = await queue.enqueue("us", { action: "scout", keyword, criteria }, 60_000);
         const posts = Array.isArray(r.payload) ? r.payload : [];
         console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
         for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {

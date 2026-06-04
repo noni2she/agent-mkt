@@ -1,4 +1,4 @@
-import type { ScoutCandidate, ScoutBudget } from "../src/core/protocol";
+import type { ScoutCandidate, ScoutBudget, ScoutCriteria } from "../src/core/protocol";
 import { parseCount } from "../src/core/filter";
 
 // content script 注入 Threads；收 SW 的 scout 訊息 → 捲動抓取 → 回傳候選。
@@ -8,7 +8,7 @@ export default defineContentScript({
   async main() {
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "scout") {
-        scout(msg.keyword as string, msg.budget as Partial<ScoutBudget> | undefined)
+        scout(msg.keyword as string, msg.criteria as Partial<ScoutCriteria> | undefined, msg.budget as Partial<ScoutBudget> | undefined)
           .then((candidates) => sendResponse({ ok: true, candidates }))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true; // async sendResponse
@@ -28,10 +28,12 @@ const SEL = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = (mean: number) => Math.max(300, Math.round(mean * (0.6 + Math.random() * 0.8)));
 
-async function scout(keyword: string, b?: Partial<ScoutBudget>): Promise<ScoutCandidate[]> {
+async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Partial<ScoutBudget>): Promise<ScoutCandidate[]> {
   const targetCandidates = b?.targetCandidates ?? 10;
   const maxScrolls = b?.maxScrolls ?? 30;
   const maxScanned = b?.maxScanned ?? 60;
+  const minLikes = criteria?.minLikes ?? 100;
+  const excludeKeywords = criteria?.excludeKeywords ?? [];
 
   const out: ScoutCandidate[] = [];
   const seen = new Set<string>();
@@ -55,7 +57,8 @@ async function scout(keyword: string, b?: Partial<ScoutBudget>): Promise<ScoutCa
       const likes = parseCount(aria);
       const author = (card.querySelector('a[href^="/@"]')?.textContent ?? "unknown").replace(/^@/, "").trim();
 
-      if (likes < 100) continue;
+      if (likes < minLikes) continue;
+      if (excludeKeywords.some((k) => text.includes(k))) continue;
 
       out.push({
         id,
@@ -71,6 +74,6 @@ async function scout(keyword: string, b?: Partial<ScoutBudget>): Promise<ScoutCa
     await sleep(jitter(1500));
     scrolls += 1;
   }
-  console.log(`[scout] keyword="${keyword}" scanned=${scanned} scrolls=${scrolls} candidates=${out.length}`);
+  console.log(`[scout] keyword="${keyword}" minLikes=${minLikes} exclude=[${excludeKeywords.join(",")}] scanned=${scanned} scrolls=${scrolls} candidates=${out.length}`);
   return out;
 }
