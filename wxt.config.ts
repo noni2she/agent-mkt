@@ -4,7 +4,7 @@ export default defineConfig({
   outDir: "dist",
   manifest: {
     name: "agent-mkt hands (dev)",
-    permissions: ["alarms"],
+    permissions: ["alarms", "tabs"],
     host_permissions: [
       "http://localhost/*",
       "http://127.0.0.1/*",

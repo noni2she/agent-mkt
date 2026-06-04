@@ -6,7 +6,7 @@ export default defineBackground(() => {
   const BASE = "http://127.0.0.1:18900";
 
   async function pollOnce() {
-    let cmds: Array<{ id: string; command: { action: string } }>;
+    let cmds: Array<{ id: string; command: { action: string; keyword?: string; budget?: unknown } }>;
     try {
       const r = await fetch(`${BASE}/poll?tenant=${TENANT}`);
       cmds = await r.json();
@@ -19,6 +19,8 @@ export default defineBackground(() => {
       if (command.action === "ping") {
         console.log("[hands] 收到 ping → 回 pong", id);
         await postResult({ type: "response", id, status: "ok", payload: "pong" });
+      } else if (command.action === "scout") {
+        await handleScout(id, command as { keyword: string; budget?: unknown });
       }
     }
     void pollOnce();
@@ -33,6 +35,33 @@ export default defineBackground(() => {
       });
     } catch (e) {
       console.log("[hands] 回報失敗", (e as Error).message);
+    }
+  }
+
+  async function handleScout(id: string, command: { keyword: string; budget?: unknown }) {
+    const tabs = await chrome.tabs.query({
+      url: ["https://www.threads.com/*", "https://www.threads.net/*"],
+    });
+    const tab = tabs[0];
+    if (!tab?.id) {
+      console.log("[hands] scout: 沒有開著的 Threads 分頁");
+      await postResult({ type: "response", id, status: "element_not_found", error: "no threads tab" });
+      return;
+    }
+    try {
+      const res = await chrome.tabs.sendMessage(tab.id, {
+        type: "scout",
+        keyword: command.keyword,
+        budget: command.budget,
+      });
+      if (res?.ok) {
+        console.log(`[hands] scout 完成，候選 ${res.candidates.length} 篇`);
+        await postResult({ type: "response", id, status: "ok", payload: res.candidates });
+      } else {
+        await postResult({ type: "response", id, status: "fail", error: res?.error ?? "scout failed" });
+      }
+    } catch (e) {
+      await postResult({ type: "response", id, status: "fail", error: String(e) });
     }
   }
 
