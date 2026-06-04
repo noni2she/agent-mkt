@@ -1,8 +1,21 @@
 import { z } from "zod";
 
-/** 後端 → hands 的指令。Plan 1 僅 ping；後續計畫擴充此 union。 */
+/** 海巡 budget（先到先停）。 */
+export const ScoutBudgetSchema = z.object({
+  targetCandidates: z.number().default(10),
+  maxScrolls: z.number().default(30),
+  maxScanned: z.number().default(60),
+});
+export type ScoutBudget = z.infer<typeof ScoutBudgetSchema>;
+
+/** 後端 → hands 的指令。 */
 export const CommandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ping") }),
+  z.object({
+    action: z.literal("scout"),
+    keyword: z.string(),
+    budget: ScoutBudgetSchema.partial().optional(),
+  }),
 ]);
 export type Command = z.infer<typeof CommandSchema>;
 
@@ -30,6 +43,18 @@ export const ResponseEnvelopeSchema = z.object({
   error: z.string().optional(),
 });
 export type ResponseEnvelope = z.infer<typeof ResponseEnvelopeSchema>;
+
+/** content script 抓到的候選貼文（MVP 部分欄位 best-effort）。 */
+export const ScoutCandidateSchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  author_handle: z.string(),
+  text: z.string(),
+  likes: z.number(),
+  replies: z.number(),
+  popular_reason: z.string(),
+});
+export type ScoutCandidate = z.infer<typeof ScoutCandidateSchema>;
 
 /** hands → 後端 的所有合法訊息。 */
 export const ClientMessageSchema = z.union([HelloSchema, ResponseEnvelopeSchema]);
