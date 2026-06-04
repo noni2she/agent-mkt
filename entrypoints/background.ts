@@ -48,8 +48,12 @@ export default defineBackground(() => {
       await postResult({ type: "response", id, status: "element_not_found", error: "no threads tab" });
       return;
     }
+    const tabId = tab.id;
+    const searchUrl = `https://www.threads.com/search?q=${encodeURIComponent(command.keyword)}&serp_type=default`;
     try {
-      const res = await chrome.tabs.sendMessage(tab.id, {
+      console.log("[hands] scout: 導頁到搜尋頁…", searchUrl);
+      await navigateAndWait(tabId, searchUrl);
+      const res = await chrome.tabs.sendMessage(tabId, {
         type: "scout",
         keyword: command.keyword,
         budget: command.budget,
@@ -63,6 +67,29 @@ export default defineBackground(() => {
     } catch (e) {
       await postResult({ type: "response", id, status: "fail", error: String(e) });
     }
+  }
+
+  /** 導頁並等該分頁 load 完成，再多等一下讓 content script 注入 + Threads 動態內容載入。 */
+  function navigateAndWait(tabId: number, url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        chrome.tabs.onUpdated.removeListener(listener);
+        reject(new Error("navigate timeout"));
+      }, 20_000);
+      function listener(updatedTabId: number, info: chrome.tabs.TabChangeInfo) {
+        if (updatedTabId === tabId && info.status === "complete") {
+          chrome.tabs.onUpdated.removeListener(listener);
+          clearTimeout(timeout);
+          setTimeout(resolve, 1500);
+        }
+      }
+      chrome.tabs.onUpdated.addListener(listener);
+      chrome.tabs.update(tabId, { url }).catch((e: unknown) => {
+        chrome.tabs.onUpdated.removeListener(listener);
+        clearTimeout(timeout);
+        reject(e instanceof Error ? e : new Error(String(e)));
+      });
+    });
   }
 
   chrome.alarms.create("poll", { periodInMinutes: 0.5 });

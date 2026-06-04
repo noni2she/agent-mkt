@@ -33,12 +33,6 @@ async function scout(keyword: string, b?: Partial<ScoutBudget>): Promise<ScoutCa
   const maxScrolls = b?.maxScrolls ?? 30;
   const maxScanned = b?.maxScanned ?? 60;
 
-  if (!location.href.includes("/search")) {
-    location.href = `https://www.threads.com/search?q=${encodeURIComponent(keyword)}&serp_type=default`;
-    await sleep(3000);
-    return [];
-  }
-
   const out: ScoutCandidate[] = [];
   const seen = new Set<string>();
   let scrolls = 0;
