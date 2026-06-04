@@ -5,6 +5,11 @@ export default defineConfig({
   manifest: {
     name: "agent-mkt hands (dev)",
     permissions: ["alarms"],
-    host_permissions: ["http://localhost/*", "http://127.0.0.1/*"],
+    host_permissions: [
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+      "https://www.threads.com/*",
+      "https://www.threads.net/*",
+    ],
   },
 });
