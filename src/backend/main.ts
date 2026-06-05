@@ -1,5 +1,7 @@
 import { CommandQueue } from "./commandQueue.js";
+import { runReview } from "./orchestrator.js";
 import { createPollServer } from "./server.js";
+import type { ScoutCandidate } from "../core/protocol.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
@@ -56,11 +58,9 @@ server.listen(PORT, () => {
         } else if (r.status !== "ok") {
           console.warn(`[dev] scout 失敗：${r.error}`);
         }
-        const posts = Array.isArray(r.payload) ? r.payload : [];
-        console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
-        for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {
-          console.log(`  - @${p.author_handle} 👍${p.likes} ${p.text.slice(0, 80).replace(/\n/g, " ")}…`);
-        }
+        const posts = (Array.isArray(r.payload) ? r.payload : []) as ScoutCandidate[];
+        console.log(`[dev] scout 回傳 ${posts.length} 篇候選，開始 LLM 判斷…`);
+        if (posts.length) await runReview(posts, keyword);
       } catch (e) {
         console.log("[dev] scout:", (e as Error).message);
       }
