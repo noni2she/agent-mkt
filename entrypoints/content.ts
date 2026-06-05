@@ -40,16 +40,27 @@ function countFromButton(card: HTMLElement, labels: string[]): number {
   return 0;
 }
 
-/** 內文：排除作者(在 /@ 連結內)、時間(在 <time> 內)、純數字計數後，取最長的 dir="auto" 文字。 */
+/** 內文：收集所有「最外層、非作者/時間/純數字」的 dir="auto" 文字塊串接（支援多段落貼文）。 */
 function extractPostText(card: HTMLElement): string {
-  let best = "";
+  const isAuthorOrTime = (el: Element) => !!el.closest("time") || !!el.closest('a[href^="/@"]');
+  const isCount = (t: string) => /^[\d.,]+\s*[萬kKwW]?$/.test(t);
+  const blocks: string[] = [];
   card.querySelectorAll<HTMLElement>('[dir="auto"]').forEach((el) => {
-    if (el.closest("time") || el.closest('a[href^="/@"]')) return;
+    if (isAuthorOrTime(el)) return;
     const t = (el.textContent ?? "").trim();
-    if (!t || /^[\d.,]+\s*[萬kKwW]?$/.test(t)) return;
-    if (t.length > best.length) best = t;
+    if (!t || isCount(t)) return;
+    // 只取最外層：若祖先也是「合格文字 dir=auto」，代表本元素是巢狀子層 → 跳過避免重複
+    let p = el.parentElement;
+    while (p && p !== card) {
+      if (p.matches('[dir="auto"]') && !isAuthorOrTime(p)) {
+        const pt = (p.textContent ?? "").trim();
+        if (pt && !isCount(pt)) return;
+      }
+      p = p.parentElement;
+    }
+    blocks.push(t);
   });
-  return best;
+  return blocks.join("\n");
 }
 
 async function scout(
