@@ -15,6 +15,15 @@ function criteriaFor(_tenant: string) {
   };
 }
 
+/** 取某租戶的海巡 budget（先到先停上限）。現在用 env/預設；Plan 4 改從 tenant_config store 讀。 */
+function budgetFor(_tenant: string) {
+  return {
+    targetCandidates: Number(process.env.DEV_TARGET ?? 10),
+    maxScrolls: Number(process.env.DEV_MAX_SCROLLS ?? 30),
+    maxScanned: Number(process.env.DEV_MAX_SCANNED ?? 60),
+  };
+}
+
 const queue = new CommandQueue();
 const server = createPollServer(queue);
 
@@ -39,8 +48,9 @@ server.listen(PORT, () => {
     setTimeout(async () => {
       try {
         const criteria = criteriaFor("us");
-        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}]`);
-        const r = await queue.enqueue("us", { action: "scout", keyword, criteria }, 60_000);
+        const budget = budgetFor("us");
+        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}] | budget: 目標${budget.targetCandidates}篇/捲${budget.maxScrolls}/掃${budget.maxScanned}`);
+        const r = await queue.enqueue("us", { action: "scout", keyword, criteria, budget }, 60_000);
         const posts = Array.isArray(r.payload) ? r.payload : [];
         console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
         for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {
