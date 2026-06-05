@@ -69,7 +69,9 @@ function extractPostText(card: HTMLElement): string {
     }
     blocks.push(t);
   });
-  return blocks.join("\n");
+  // 結尾剝除翻譯鈕等 UI 文字（有時被併進內文塊的 textContent，非獨立塊）
+  const tail = /(?:\s*(?:Translate|翻譯|查看翻譯|See translation))+\s*$/;
+  return blocks.join("\n").replace(tail, "").trim();
 }
 
 async function scout(
