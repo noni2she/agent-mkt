@@ -25,6 +25,9 @@ const SEL = {
   likeBtn: 'svg[aria-label*="讚"], svg[aria-label*="ike"]',
 };
 
+/** Threads UI 按鈕文字（非內文），抓取時排除。 */
+const JUNK_LABELS = new Set(["Translate", "翻譯", "查看翻譯", "See translation"]);
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = (mean: number) => Math.max(300, Math.round(mean * (0.6 + Math.random() * 0.8)));
 
@@ -54,7 +57,7 @@ function extractPostText(card: HTMLElement): string {
   card.querySelectorAll<HTMLElement>('[dir="auto"]').forEach((el) => {
     if (isAuthorOrTime(el) || !afterTime(el)) return; // 排除作者/時間，且只取時間之後（過濾分類標籤）
     const t = (el.textContent ?? "").trim();
-    if (!t || isCount(t)) return;
+    if (!t || isCount(t) || JUNK_LABELS.has(t)) return;
     // 只取最外層：若祖先也是「合格文字 dir=auto」，代表本元素是巢狀子層 → 跳過避免重複
     let p = el.parentElement;
     while (p && p !== card) {
