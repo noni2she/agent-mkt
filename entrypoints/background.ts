@@ -49,7 +49,7 @@ export default defineBackground(() => {
       return;
     }
     const tabId = tab.id;
-    const searchUrl = `https://www.threads.com/search?q=${encodeURIComponent(command.keyword)}&serp_type=default`;
+    const searchUrl = `https://www.threads.com/search?q=${encodeURIComponent(command.keyword)}&serp_type=tags&filter=recent`;
     try {
       console.log("[hands] scout: 導頁到搜尋頁…", searchUrl);
       await navigateAndWait(tabId, searchUrl);
