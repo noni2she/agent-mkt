@@ -22,7 +22,7 @@ export async function reviewCandidate(
     instructions: buildReviewerInstructions(persona, keyword),
     model: process.env.OPENAI_MODEL ?? "gpt-4o",
     outputType: ReviewOutputSchema,
-    modelSettings: { maxTokens: 500 },
+    modelSettings: { maxTokens: 1000 },
   });
   const input = `貼文（作者 @${candidate.author_handle}，👍${candidate.likes}）：\n${candidate.text}`;
   const result = await run(agent, input);

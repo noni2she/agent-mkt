@@ -20,6 +20,7 @@ export async function runReview(candidates: ScoutCandidate[], keyword: string): 
   const persona = loadPersona();
   const records: ReviewRecord[] = [];
   for (const c of candidates) {
+    console.log(`  ▸ @${c.author_handle} 👍${c.likes}：${c.text.slice(0, 70).replace(/\n/g, " ")}…`);
     try {
       const r = await reviewCandidate(c, persona, keyword);
       records.push({
@@ -32,10 +33,10 @@ export async function runReview(candidates: ScoutCandidate[], keyword: string): 
         status: "pending",
         created_at: new Date().toISOString(),
       });
-      console.log(`  ${r.relevant ? "✅" : "⛔"} @${c.author_handle} — ${r.reason}`);
+      console.log(`     ${r.relevant ? "✅相關" : "⛔不相關"} — ${r.reason}`);
       if (r.relevant) console.log(`     → ${r.draft}`);
     } catch (e) {
-      console.warn(`  ⚠️ review 失敗 @${c.author_handle}: ${(e as Error).message}`);
+      console.warn(`     ⚠️ review 失敗：${(e as Error).message}（原文見上行）`);
     }
   }
   const relevant = records.filter((r) => r.relevant);
