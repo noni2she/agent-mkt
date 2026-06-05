@@ -40,13 +40,19 @@ function countFromButton(card: HTMLElement, labels: string[]): number {
   return 0;
 }
 
-/** 內文：收集所有「最外層、非作者/時間/純數字」的 dir="auto" 文字塊串接（支援多段落貼文）。 */
+/**
+ * 內文：Threads 卡片順序為 作者 → 分類 → <time> → 內文段落 → 計數。
+ * 故只取「<time> 之後、非作者/時間/純數字、最外層」的 dir="auto" 文字塊並串接（支援多段落）。
+ */
 function extractPostText(card: HTMLElement): string {
+  const timeEl = card.querySelector("time");
   const isAuthorOrTime = (el: Element) => !!el.closest("time") || !!el.closest('a[href^="/@"]');
   const isCount = (t: string) => /^[\d.,]+\s*[萬kKwW]?$/.test(t);
+  const afterTime = (el: Element) =>
+    !timeEl || !!(timeEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
   const blocks: string[] = [];
   card.querySelectorAll<HTMLElement>('[dir="auto"]').forEach((el) => {
-    if (isAuthorOrTime(el)) return;
+    if (isAuthorOrTime(el) || !afterTime(el)) return; // 排除作者/時間，且只取時間之後（過濾分類標籤）
     const t = (el.textContent ?? "").trim();
     if (!t || isCount(t)) return;
     // 只取最外層：若祖先也是「合格文字 dir=auto」，代表本元素是巢狀子層 → 跳過避免重複
