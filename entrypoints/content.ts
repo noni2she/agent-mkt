@@ -28,6 +28,30 @@ const SEL = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const jitter = (mean: number) => Math.max(300, Math.round(mean * (0.6 + Math.random() * 0.8)));
 
+/** 從動作鈕（Like/Reply…）文字抽數字：「Like10」→10、「讚1.2萬」→12000。aria-label 跨語系皆試。 */
+function countFromButton(card: HTMLElement, labels: string[]): number {
+  for (const label of labels) {
+    const svg =
+      card.querySelector(`svg[aria-label="${label}"]`) ?? card.querySelector(`svg[aria-label*="${label}"]`);
+    const btn = svg?.closest('div[role="button"], a, button');
+    const m = (btn?.textContent ?? "").match(/[\d.,]+\s*[萬kKwW]?/);
+    if (m) return parseCount(m[0]);
+  }
+  return 0;
+}
+
+/** 內文：排除作者(在 /@ 連結內)、時間(在 <time> 內)、純數字計數後，取最長的 dir="auto" 文字。 */
+function extractPostText(card: HTMLElement): string {
+  let best = "";
+  card.querySelectorAll<HTMLElement>('[dir="auto"]').forEach((el) => {
+    if (el.closest("time") || el.closest('a[href^="/@"]')) return;
+    const t = (el.textContent ?? "").trim();
+    if (!t || /^[\d.,]+\s*[萬kKwW]?$/.test(t)) return;
+    if (t.length > best.length) best = t;
+  });
+  return best;
+}
+
 async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Partial<ScoutBudget>): Promise<ScoutCandidate[]> {
   const targetCandidates = b?.targetCandidates ?? 10;
   const maxScrolls = b?.maxScrolls ?? 30;
@@ -52,10 +76,10 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
       seen.add(id);
       scanned += 1;
 
-      const text = (card.querySelector(SEL.postText)?.textContent ?? "").trim();
+      const text = extractPostText(card);
       if (!text) continue;
-      const aria = card.querySelector(SEL.likeBtn)?.getAttribute("aria-label") ?? "";
-      const likes = parseCount(aria);
+      const likes = countFromButton(card, ["Like", "讚"]);
+      const replies = countFromButton(card, ["Reply", "回覆", "留言"]);
       const author = (card.querySelector('a[href^="/@"]')?.textContent ?? "unknown").replace(/^@/, "").trim();
 
       const datetime = card.querySelector("time")?.getAttribute("datetime") ?? "";
@@ -71,7 +95,7 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
         author_handle: author,
         text,
         likes,
-        replies: 0,
+        replies,
         posted_at: datetime || new Date().toISOString(),
         popular_reason: `👍${likes} ${isFinite(ageHours) ? Math.round(ageHours) + "h" : ""}`.trimEnd(),
       });
