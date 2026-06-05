@@ -60,8 +60,21 @@ export default defineBackground(() => {
         budget: command.budget,
       });
       if (res?.ok) {
-        console.log(`[hands] scout 完成，候選 ${res.candidates.length} 篇`);
-        await postResult({ type: "response", id, status: "ok", payload: res.candidates });
+        const h = res.health as { scanned: number; withText: number; withLikeBtn: number } | undefined;
+        const stale = !!h && h.scanned > 0 && (h.withText === 0 || h.withLikeBtn === 0);
+        if (stale) {
+          console.warn("[hands] ⚠️ 選擇器疑似失效，非真的沒貼文", h);
+          await postResult({
+            type: "response",
+            id,
+            status: "element_not_found",
+            error: `selectors stale: scanned=${h!.scanned} withText=${h!.withText} withLikeBtn=${h!.withLikeBtn}`,
+            payload: res.candidates,
+          });
+        } else {
+          console.log(`[hands] scout 完成，候選 ${res.candidates.length} 篇`);
+          await postResult({ type: "response", id, status: "ok", payload: res.candidates });
+        }
       } else {
         await postResult({ type: "response", id, status: "fail", error: res?.error ?? "scout failed" });
       }

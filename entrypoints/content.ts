@@ -9,7 +9,7 @@ export default defineContentScript({
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "scout") {
         scout(msg.keyword as string, msg.criteria as Partial<ScoutCriteria> | undefined, msg.budget as Partial<ScoutBudget> | undefined)
-          .then((candidates) => sendResponse({ ok: true, candidates }))
+          .then((r) => sendResponse({ ok: true, candidates: r.candidates, health: r.health }))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true; // async sendResponse
       }
@@ -52,7 +52,11 @@ function extractPostText(card: HTMLElement): string {
   return best;
 }
 
-async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Partial<ScoutBudget>): Promise<ScoutCandidate[]> {
+async function scout(
+  keyword: string,
+  criteria?: Partial<ScoutCriteria>,
+  b?: Partial<ScoutBudget>,
+): Promise<{ candidates: ScoutCandidate[]; health: { scanned: number; withText: number; withLikeBtn: number } }> {
   const targetCandidates = b?.targetCandidates ?? 10;
   const maxScrolls = b?.maxScrolls ?? 30;
   const maxScanned = b?.maxScanned ?? 60;
@@ -64,6 +68,8 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
   const seen = new Set<string>();
   let scrolls = 0;
   let scanned = 0;
+  let withText = 0;
+  let withLikeBtn = 0;
 
   while (out.length < targetCandidates && scrolls < maxScrolls && scanned < maxScanned) {
     const cards = Array.from(document.querySelectorAll<HTMLElement>(SEL.post));
@@ -77,6 +83,9 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
       scanned += 1;
 
       const text = extractPostText(card);
+      const likeBtnFound = !!card.querySelector('svg[aria-label="Like"], svg[aria-label*="讚"]');
+      if (text) withText += 1;
+      if (likeBtnFound) withLikeBtn += 1;
       if (!text) continue;
       const likes = countFromButton(card, ["Like", "讚"]);
       const replies = countFromButton(card, ["Reply", "回覆", "留言"]);
@@ -104,7 +113,9 @@ async function scout(keyword: string, criteria?: Partial<ScoutCriteria>, b?: Par
     await sleep(jitter(1500));
     scrolls += 1;
   }
+  const stale = scanned > 0 && (withText === 0 || withLikeBtn === 0);
   console.log(`[scout] 套用條件 minLikes=${minLikes} maxAgeHours=${maxAgeHours ?? "∞"} exclude=[${excludeKeywords.join(", ")}]`);
-  console.log(`[scout] keyword="${keyword}" scanned=${scanned} scrolls=${scrolls} candidates=${out.length}`);
-  return out;
+  console.log(`[scout] keyword="${keyword}" scanned=${scanned} scrolls=${scrolls} candidates=${out.length} withText=${withText} withLikeBtn=${withLikeBtn}`);
+  if (stale) console.warn(`[scout] ⚠️ 選擇器疑似失效：掃了 ${scanned} 張卡但 withText=${withText} withLikeBtn=${withLikeBtn}`);
+  return { candidates: out, health: { scanned, withText, withLikeBtn } };
 }

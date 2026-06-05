@@ -51,6 +51,11 @@ server.listen(PORT, () => {
         const budget = budgetFor("us");
         console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}] | budget: 目標${budget.targetCandidates}篇/捲${budget.maxScrolls}/掃${budget.maxScanned}`);
         const r = await queue.enqueue("us", { action: "scout", keyword, criteria, budget }, 60_000);
+        if (r.status === "element_not_found") {
+          console.warn(`[dev] ⚠️ 選擇器疑似失效（不是真的沒貼文）：${r.error}`);
+        } else if (r.status !== "ok") {
+          console.warn(`[dev] scout 失敗：${r.error}`);
+        }
         const posts = Array.isArray(r.payload) ? r.payload : [];
         console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
         for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {
