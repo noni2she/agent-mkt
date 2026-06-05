@@ -59,7 +59,7 @@ server.listen(PORT, () => {
         const posts = Array.isArray(r.payload) ? r.payload : [];
         console.log(`[dev] scout 回傳 ${posts.length} 篇候選：`);
         for (const p of posts as Array<{ author_handle: string; likes: number; text: string }>) {
-          console.log(`  - @${p.author_handle} 👍${p.likes} ${p.text.slice(0, 40).replace(/\n/g, " ")}…`);
+          console.log(`  - @${p.author_handle} 👍${p.likes} ${p.text.slice(0, 80).replace(/\n/g, " ")}…`);
         }
       } catch (e) {
         console.log("[dev] scout:", (e as Error).message);
