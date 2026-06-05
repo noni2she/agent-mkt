@@ -195,7 +195,7 @@ LLM 用於：① 撰寫 reply（MVP）② 撰寫品牌貼文（Phase 2）③ 判
 |---|---|---|
 | 1 | 骨架：core/adapter + 後端 gateway(WS) + content script ws-client，hello 指令往返 | brain↔hands 命脈通 |
 | 2 | 海巡(B)：content/scout + core/filter 本地迴圈 + budget → 後端收一批候選 | 取樣鏈路 |
-| 3 | reply 寫稿：orchestrator + LLMClient + core/prompt + kb 讀 → 產 ReviewItem 入 SQLite；**建 `tenant_config`（per-tenant keywords+criteria），scout 指令改從它讀（取代 env/預設）** | LLM 鏈路（PoC 缺）+ 多租戶條件地基 |
+| 3 | reply 寫稿：orchestrator + LLMClient + core/prompt + kb 讀 → 產 ReviewItem 入 SQLite；**建 `tenant_config`（per-tenant keywords+criteria），scout 指令改從它讀（取代 env/預設）**；**LLM 相關性判斷：對 scout 候選判斷與關鍵字/品牌是否相關、棄用無關者；不足量則再 scout 補足（refill 迴圈）** | LLM 鏈路（PoC 缺）+ 多租戶條件地基 + 語意相關性 |
 | 4 | 審核台：side panel + review-api → approve/edit/reject | 人審閘門 |
 | 5 | 發布(B)：content/actor postReply 真實分頁送出 → 記 history + throttle | **閉合 MVP 迴圈** |
 | 6 | 設定頁：調參數 + 編輯知識 prompt（寫版本化 kb） | 可運營 |
