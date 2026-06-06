@@ -69,9 +69,14 @@ function extractPostText(card: HTMLElement): string {
     }
     blocks.push(t);
   });
-  // 結尾剝除翻譯鈕等 UI 文字（有時被併進內文塊的 textContent，非獨立塊）
-  const tail = /(?:\s*(?:Translate|翻譯|查看翻譯|See translation))+\s*$/;
-  return blocks.join("\n").replace(tail, "").trim();
+  // 剝除翻譯鈕等 UI 文字（可能被併進內文塊的 textContent，或落在任一行尾）
+  const junk = /\s*(?:Translate|翻譯|查看翻譯|See translation)\s*$/;
+  return blocks
+    .join("\n")
+    .split("\n")
+    .map((line) => line.replace(junk, "").trim())
+    .filter((line) => line.length > 0)
+    .join("\n");
 }
 
 async function scout(
