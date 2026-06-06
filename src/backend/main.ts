@@ -1,7 +1,6 @@
 import { CommandQueue } from "./commandQueue.js";
-import { runReview } from "./orchestrator.js";
+import { scoutAndReview } from "./coordinator.js";
 import { createPollServer } from "./server.js";
-import type { ScoutCandidate } from "../core/protocol.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
@@ -52,16 +51,9 @@ server.listen(PORT, () => {
         const criteria = criteriaFor("us");
         const budget = budgetFor("us");
         const serpType = process.env.DEV_SERP === "recent" ? "recent" : "default";
-        console.log(`[dev] scout criteria: serp=${serpType} minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}] | budget: 目標${budget.targetCandidates}篇/捲${budget.maxScrolls}/掃${budget.maxScanned}`);
-        const r = await queue.enqueue("us", { action: "scout", keyword, serpType, criteria, budget }, 60_000);
-        if (r.status === "element_not_found") {
-          console.warn(`[dev] ⚠️ 選擇器疑似失效（不是真的沒貼文）：${r.error}`);
-        } else if (r.status !== "ok") {
-          console.warn(`[dev] scout 失敗：${r.error}`);
-        }
-        const posts = (Array.isArray(r.payload) ? r.payload : []) as ScoutCandidate[];
-        console.log(`[dev] scout 回傳 ${posts.length} 篇候選，開始 LLM 判斷…`);
-        if (posts.length) await runReview(posts, keyword);
+        const targetRelevant = Number(process.env.DEV_TARGET_RELEVANT ?? 3);
+        console.log(`[dev] scout serp=${serpType} minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} 目標相關=${targetRelevant}`);
+        await scoutAndReview(queue, "us", { keyword, serpType, criteria, budget, targetRelevant });
       } catch (e) {
         console.log("[dev] scout:", (e as Error).message);
       }
