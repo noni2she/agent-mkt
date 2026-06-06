@@ -25,6 +25,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
     serpType: z.enum(["default", "recent"]).optional(), // default=熱門列表；recent=最新
     criteria: ScoutCriteriaSchema.partial().optional(),
     budget: ScoutBudgetSchema.partial().optional(),
+    excludeIds: z.array(z.string()).optional(), // 已處理貼文 id，content script 跳過
   }),
 ]);
 export type Command = z.infer<typeof CommandSchema>;
