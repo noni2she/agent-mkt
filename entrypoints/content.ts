@@ -8,7 +8,12 @@ export default defineContentScript({
   async main() {
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "scout") {
-        scout(msg.keyword as string, msg.criteria as Partial<ScoutCriteria> | undefined, msg.budget as Partial<ScoutBudget> | undefined)
+        scout(
+          msg.keyword as string,
+          msg.criteria as Partial<ScoutCriteria> | undefined,
+          msg.budget as Partial<ScoutBudget> | undefined,
+          (msg.excludeIds as string[] | undefined) ?? [],
+        )
           .then((r) => sendResponse({ ok: true, candidates: r.candidates, health: r.health }))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true; // async sendResponse
@@ -83,6 +88,7 @@ async function scout(
   keyword: string,
   criteria?: Partial<ScoutCriteria>,
   b?: Partial<ScoutBudget>,
+  excludeIds: string[] = [],
 ): Promise<{ candidates: ScoutCandidate[]; health: { scanned: number; withText: number; withLikeBtn: number } }> {
   const targetCandidates = b?.targetCandidates ?? 10;
   const maxScrolls = b?.maxScrolls ?? 30;
@@ -92,7 +98,7 @@ async function scout(
   const maxAgeHours = criteria?.maxAgeHours;
 
   const out: ScoutCandidate[] = [];
-  const seen = new Set<string>();
+  const seen = new Set<string>(excludeIds);
   let scrolls = 0;
   let scanned = 0;
   let withText = 0;
