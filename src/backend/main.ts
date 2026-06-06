@@ -51,8 +51,9 @@ server.listen(PORT, () => {
       try {
         const criteria = criteriaFor("us");
         const budget = budgetFor("us");
-        console.log(`[dev] scout criteria: minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}] | budget: 目標${budget.targetCandidates}篇/捲${budget.maxScrolls}/掃${budget.maxScanned}`);
-        const r = await queue.enqueue("us", { action: "scout", keyword, criteria, budget }, 60_000);
+        const serpType = process.env.DEV_SERP === "recent" ? "recent" : "default";
+        console.log(`[dev] scout criteria: serp=${serpType} minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} exclude=[${criteria.excludeKeywords.join(",")}] | budget: 目標${budget.targetCandidates}篇/捲${budget.maxScrolls}/掃${budget.maxScanned}`);
+        const r = await queue.enqueue("us", { action: "scout", keyword, serpType, criteria, budget }, 60_000);
         if (r.status === "element_not_found") {
           console.warn(`[dev] ⚠️ 選擇器疑似失效（不是真的沒貼文）：${r.error}`);
         } else if (r.status !== "ok") {

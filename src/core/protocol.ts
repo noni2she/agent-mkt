@@ -22,6 +22,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("scout"),
     keyword: z.string(),
+    serpType: z.enum(["default", "recent"]).optional(), // default=熱門列表；recent=最新
     criteria: ScoutCriteriaSchema.partial().optional(),
     budget: ScoutBudgetSchema.partial().optional(),
   }),
