@@ -25,6 +25,14 @@ export async function reviewCandidate(
     modelSettings: { maxTokens: 1000 },
   });
   const input = `貼文（作者 @${candidate.author_handle}，👍${candidate.likes}）：\n${candidate.text}`;
-  const result = await run(agent, input);
-  return result.finalOutput as ReviewOutput;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const result = await run(agent, input);
+      return result.finalOutput as ReviewOutput;
+    } catch (e) {
+      lastErr = e; // 結構化輸出偶發 JSON 失敗 → 重試一次
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
