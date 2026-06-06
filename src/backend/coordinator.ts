@@ -14,13 +14,15 @@ export interface ScoutReviewOpts {
 
 /** scout → LLM 篩 → 相關不足量就再 scout（跳過已處理），直到達標/達輪數/無新貼文。 */
 export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: ScoutReviewOpts): Promise<number> {
-  const maxRounds = opts.maxRounds ?? 3;
+  const maxRounds = opts.maxRounds ?? 5;
   const fresh = process.env.DEV_FRESH === "1"; // dev：忽略歷史已處理，方便重測
   let totalRelevant = 0;
 
   for (let round = 1; round <= maxRounds; round++) {
     const excludeIds = fresh ? [] : getProcessedIds(tenant);
-    console.log(`[refill] 第 ${round}/${maxRounds} 輪 scout（排除 ${excludeIds.length} 篇已處理）…`);
+    const remaining = opts.targetRelevant - totalRelevant; // 本輪只撈缺額，省 LLM 呼叫
+    const roundBudget = { ...opts.budget, targetCandidates: Math.max(remaining, 1) };
+    console.log(`[refill] 第 ${round}/${maxRounds} 輪 scout（缺 ${remaining} 篇、排除 ${excludeIds.length} 篇已處理）…`);
     const res = await queue.enqueue(
       tenant,
       {
@@ -28,7 +30,7 @@ export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: 
         keyword: opts.keyword,
         serpType: opts.serpType,
         criteria: opts.criteria,
-        budget: opts.budget,
+        budget: roundBudget,
         excludeIds,
       },
       60_000,
