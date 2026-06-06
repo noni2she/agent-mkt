@@ -6,7 +6,7 @@ export default defineBackground(() => {
   const BASE = "http://127.0.0.1:18900";
 
   async function pollOnce() {
-    let cmds: Array<{ id: string; command: { action: string; keyword?: string; serpType?: string; criteria?: unknown; budget?: unknown } }>;
+    let cmds: Array<{ id: string; command: { action: string; keyword?: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown } }>;
     try {
       const r = await fetch(`${BASE}/poll?tenant=${TENANT}`);
       cmds = await r.json();
@@ -20,7 +20,7 @@ export default defineBackground(() => {
         console.log("[hands] 收到 ping → 回 pong", id);
         await postResult({ type: "response", id, status: "ok", payload: "pong" });
       } else if (command.action === "scout") {
-        await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown });
+        await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown });
       }
     }
     void pollOnce();
@@ -38,7 +38,7 @@ export default defineBackground(() => {
     }
   }
 
-  async function handleScout(id: string, command: { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown }) {
+  async function handleScout(id: string, command: { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown }) {
     const tabs = await chrome.tabs.query({
       url: ["https://www.threads.com/*", "https://www.threads.net/*"],
     });
@@ -59,6 +59,7 @@ export default defineBackground(() => {
         keyword: command.keyword,
         criteria: command.criteria,
         budget: command.budget,
+        excludeIds: command.excludeIds,
       });
       if (res?.ok) {
         const h = res.health as { scanned: number; withText: number; withLikeBtn: number } | undefined;
