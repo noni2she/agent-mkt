@@ -58,30 +58,30 @@ function extractPostText(card: HTMLElement): string {
   const isCount = (t: string) => /^[\d.,]+\s*[萬kKwW]?$/.test(t);
   const afterTime = (el: Element) =>
     !timeEl || !!(timeEl.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+  // 讀文字但移除其中的按鈕：Translate、讚/留言/轉發等計數都是 role="button" 的 span，會混進 textContent
+  const cleanText = (el: HTMLElement): string => {
+    const clone = el.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll('[role="button"]').forEach((b) => b.remove());
+    return (clone.textContent ?? "").trim();
+  };
   const blocks: string[] = [];
   card.querySelectorAll<HTMLElement>('[dir="auto"]').forEach((el) => {
-    if (isAuthorOrTime(el) || !afterTime(el)) return; // 排除作者/時間，且只取時間之後（過濾分類標籤）
-    const t = (el.textContent ?? "").trim();
+    if (isAuthorOrTime(el) || !afterTime(el)) return; // 排除作者/時間，只取時間之後
+    if (el.closest('[role="button"]')) return; // 本身在按鈕內 → 跳過
+    const t = cleanText(el);
     if (!t || isCount(t) || JUNK_LABELS.has(t)) return;
     // 只取最外層：若祖先也是「合格文字 dir=auto」，代表本元素是巢狀子層 → 跳過避免重複
     let p = el.parentElement;
     while (p && p !== card) {
-      if (p.matches('[dir="auto"]') && !isAuthorOrTime(p)) {
-        const pt = (p.textContent ?? "").trim();
+      if (p.matches('[dir="auto"]') && !isAuthorOrTime(p) && !p.closest('[role="button"]')) {
+        const pt = cleanText(p);
         if (pt && !isCount(pt)) return;
       }
       p = p.parentElement;
     }
     blocks.push(t);
   });
-  // 剝除翻譯鈕等 UI 文字（可能被併進內文塊的 textContent，或落在任一行尾）
-  const junk = /\s*(?:Translate|翻譯|查看翻譯|See translation)\s*$/;
-  return blocks
-    .join("\n")
-    .split("\n")
-    .map((line) => line.replace(junk, "").trim())
-    .filter((line) => line.length > 0)
-    .join("\n");
+  return blocks.join("\n").trim();
 }
 
 async function scout(
