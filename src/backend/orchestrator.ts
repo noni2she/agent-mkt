@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync } from "node:fs";
 import type { ScoutCandidate } from "../core/protocol.js";
-import { loadPersona } from "./persona.js";
+import { loadAgentDef } from "./agentDef.js";
 import { reviewCandidate } from "./reviewer.js";
 import { saveReviewItem } from "./store.js";
 
@@ -18,12 +18,12 @@ export interface ReviewRecord {
 
 /** 對一批 scout 候選跑 LLM 判斷+草稿，寫 data/review-queue.json，回傳相關的。 */
 export async function runReview(candidates: ScoutCandidate[], keyword: string, tenant: string): Promise<ReviewRecord[]> {
-  const persona = loadPersona();
+  const def = loadAgentDef();
   const records: ReviewRecord[] = [];
   for (const c of candidates) {
     console.log(`  ▸ @${c.author_handle} 👍${c.likes}：${c.text.slice(0, 70).replace(/\n/g, " ")}…`);
     try {
-      const r = await reviewCandidate(c, persona, keyword);
+      const r = await reviewCandidate(c, def, keyword);
       const rec = {
         id: randomUUID(),
         kind: "reply" as const,
