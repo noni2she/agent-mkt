@@ -1,0 +1,28 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Spacing scale" subtitle="4px base — gap & padding rhythm" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--surface-page); font-family: var(--font-sans); }
+  .row { display: flex; align-items: flex-end; gap: 16px; }
+  .item { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .bar { background: var(--brand-300); border-radius: var(--radius-xs); width: 22px; }
+  .n { font: 11px/1 var(--font-mono); color: var(--text-strong); }
+  .px { font: 10px/1 var(--font-mono); color: var(--text-faint); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="bar" style="height:4px"></div><div class="n">1</div><div class="px">4</div></div>
+    <div class="item"><div class="bar" style="height:8px"></div><div class="n">2</div><div class="px">8</div></div>
+    <div class="item"><div class="bar" style="height:12px"></div><div class="n">3</div><div class="px">12</div></div>
+    <div class="item"><div class="bar" style="height:16px"></div><div class="n">4</div><div class="px">16</div></div>
+    <div class="item"><div class="bar" style="height:24px"></div><div class="n">6</div><div class="px">24</div></div>
+    <div class="item"><div class="bar" style="height:32px"></div><div class="n">8</div><div class="px">32</div></div>
+    <div class="item"><div class="bar" style="height:48px"></div><div class="n">12</div><div class="px">48</div></div>
+    <div class="item"><div class="bar" style="height:64px"></div><div class="n">16</div><div class="px">64</div></div>
+  </div>
+</body>
+</html>

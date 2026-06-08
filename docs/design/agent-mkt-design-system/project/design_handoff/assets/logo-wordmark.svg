@@ -1,0 +1,10 @@
+<svg width="184" height="32" viewBox="0 0 184 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="agent-mkt">
+  <rect width="32" height="32" rx="8" fill="#0d8268"></rect>
+  <g stroke="#ffffff" stroke-width="2.1" stroke-linecap="round" fill="none">
+    <path d="M10 16 A6 6 0 0 1 16 22"></path>
+    <path d="M10 11 A11 11 0 0 1 21 22"></path>
+    <path d="M10 6 A16 16 0 0 1 26 22"></path>
+  </g>
+  <circle cx="10" cy="22" r="2.4" fill="#ffffff"></circle>
+  <text x="44" y="22" font-family="&#39;Noto Sans TC&#39;, system-ui, sans-serif" font-size="18" font-weight="700" letter-spacing="-0.2" fill="#14171a">agent<tspan fill="#0d8268">-</tspan>mkt</text>
+</svg>

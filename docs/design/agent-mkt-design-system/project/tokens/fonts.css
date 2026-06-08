@@ -1,0 +1,17 @@
+/* ============================================================
+   agent-mkt · Webfonts
+   Product is Traditional Chinese (zh-TW) first. CJK font binaries
+   are multi-megabyte, so we load the official Google Fonts builds
+   over CDN rather than bundling .woff2 files.
+
+   · Noto Sans TC  — UI + body (zh-TW + Latin), the workhorse
+   · Noto Serif TC — editorial display / marketing headlines
+   · JetBrains Mono — handles, metrics, timestamps, code
+
+   NOTE: substitution flag — no brand fonts existed in the PoC
+   (it used system-ui). These Noto faces are the freely-licensed,
+   production-safe default for zh-TW. Swap if a licensed brand
+   face is provided.
+   ============================================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap");

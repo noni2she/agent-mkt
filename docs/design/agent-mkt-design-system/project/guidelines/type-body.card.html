@@ -1,0 +1,28 @@
+<!-- @dsCard group="Type" viewport="700x220" name="Headings & Body · Noto Sans TC" subtitle="The workhorse UI family — h1–h3, body, small" -->
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--surface-page); }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .row { display: flex; align-items: baseline; gap: 14px; }
+  .spec { font: 11px/1 var(--font-mono); color: var(--text-faint); white-space: nowrap; width: 110px; flex: none; }
+  .h1 { font: var(--text-h1); color: var(--text-strong); }
+  .h2 { font: var(--text-h2); color: var(--text-strong); }
+  .h3 { font: var(--text-h3); color: var(--text-strong); }
+  .body { font: var(--text-default); color: var(--text-body); max-width: 440px; }
+  .sm { font: var(--text-small); color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="stack">
+    <div class="row"><span class="spec">h1 · 23 / 700</span><span class="h1">審核佇列</span></div>
+    <div class="row"><span class="spec">h2 · 19 / 700</span><span class="h2">原文（必讀上下文）</span></div>
+    <div class="row"><span class="spec">h3 · 16 / 500</span><span class="h3">AI 回應草稿</span></div>
+    <div class="row"><span class="spec">body · 15 / 400</span><span class="body">日本泡沫提醒一件事：高槓桿＋普遍樂觀很危險，買房別只看價格，利率和流動性也要算進來。</span></div>
+    <div class="row"><span class="spec">small · 13.5 / 400</span><span class="sm">無「全部通過」鍵：每一筆都必須逐條決定。</span></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!-- @dsCard group="Spacing" viewport="700x150" name="Corner radii" subtitle="Soft-but-square — controls 8, cards 12, pills for chips" -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 20px 22px; background: var(--surface-page); font-family: var(--font-sans); }
+  .row { display: flex; gap: 16px; align-items: flex-end; }
+  .item { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .box { width: 64px; height: 56px; background: var(--surface-card); border: 1.5px solid var(--brand-300); }
+  .n { font: 11px/1 var(--font-mono); color: var(--text-strong); }
+  .px { font: 10px/1 var(--font-mono); color: var(--text-faint); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="item"><div class="box" style="border-radius:var(--radius-xs)"></div><div class="n">xs</div><div class="px">4</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="n">sm</div><div class="px">6</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-md)"></div><div class="n">md</div><div class="px">8</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="n">lg</div><div class="px">12</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-xl)"></div><div class="n">xl</div><div class="px">16</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-2xl)"></div><div class="n">2xl</div><div class="px">22</div></div>
+    <div class="item"><div class="box" style="border-radius:var(--radius-pill);width:84px"></div><div class="n">pill</div><div class="px">999</div></div>
+  </div>
+</body>
+</html>

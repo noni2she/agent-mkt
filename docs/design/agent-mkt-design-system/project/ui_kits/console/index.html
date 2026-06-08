@@ -1,0 +1,550 @@
+<!-- @dsCard group="Console" viewport="1280x780" name="審核台 · full console" subtitle="Scout → Review Queue → Knowledge Base — interactive click-through" -->
+<!-- @startingPoint section="Console" subtitle="Agent MKT 小編審核台 — full interactive console" viewport="1280x780" -->
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent MKT 小編審核台</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: var(--surface-page); font-family: var(--font-sans); overflow: hidden; }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; cursor: pointer; }
+  a { color: var(--text-link); }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--ink-200); border-radius: 3px; }
+  textarea { font-family: inherit; }
+  .ic { display: inline-flex; align-items: center; justify-content: center; }
+  .ic svg { width: 100%; height: 100%; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1.2s linear infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+// ── Data ───────────────────────────────────────────────────────────────
+const QUEUE = [
+  { id:"a1", kind:"reply", status:"pending", recommend_reason:"popular: 👍2669/💬436 567h內", rule_flags:[],
+    draft:"台灣的情況不一樣，但這個案例值得參考：當房市基本面惡化太久，補漲預期本身就是風險。HouseGuide.ai 的估價模型也把這類外部衝擊納入了 📊",
+    target_post:{ author_handle:"ensonhsu", likes:2669, replies:436, posted_at:"2026-05-01T00:00:00Z",
+      url:"https://www.threads.com/@ensonhsu/post/DXxv9PviYQA", thread_excerpt:[],
+      text:"全台房地產業面臨寶佳之亂\n寶佳倒底是誰\n大家都他是有褒也有貶\n讓我們來「聽聽看」吧\n#房地產行銷 #代銷人生 #寶佳機構 #艾德先生" }},
+  { id:"a2", kind:"reply", status:"pending", recommend_reason:"popular: 👍1599/💬110 63h內", rule_flags:[],
+    draft:"合約細節真的是眉角，建議同時看區域行情數據，用客觀數字補強主觀判斷——HouseGuide.ai 的新建案估價可以免費查 🏠",
+    target_post:{ author_handle:"chachanel_tw", likes:1599, replies:110, posted_at:"2026-05-22T00:00:00Z",
+      url:"https://www.threads.com/@chachanel_tw/post/DYo-DDRERyB", thread_excerpt:["同感！簽約前一定要找律師","這篇講得很詳細"],
+      text:"別因為那疊紙太厚就瞎簽！合約裡這三句話，專坑不懂的人。\n\n我常看到首購族簽約時，代銷翻到哪他就簽到哪——魔鬼都藏在你覺得「很正常」的廢話裡。\n不想當冤大頭，這三行字請睜大眼睛看清楚。" }},
+  { id:"a3", kind:"reply", status:"pending", recommend_reason:"popular: 👍629/💬109 587h內", rule_flags:["不得提供投資建議"],
+    draft:"建議先檢視整體資產配置，設置停損點，並考慮分散投資降低風險。中國房市的崩跌是個教訓，台灣投資人應該...",
+    target_post:{ author_handle:"fox.hsiao", likes:629, replies:109, posted_at:"2026-04-28T00:00:00Z",
+      url:"https://www.threads.com/@fox.hsiao/post/DXrj56jkvgi", thread_excerpt:[],
+      text:"\"中國房地產市場已抹平過去 20 年來的所有漲幅\"，恭喜疫情前撤出的人。" }},
+  { id:"a4", kind:"reply", status:"pending", recommend_reason:"popular: 👍707/💬192 5h內", rule_flags:[], draft:"",
+    target_post:{ author_handle:"daytrade20challenge", likes:707, replies:192, posted_at:"2026-05-22T06:00:00Z",
+      url:"https://www.threads.com/@daytrade20challenge/post/DYoMDnUAbXC", thread_excerpt:[],
+      text:"10萬全職當沖Day 54 差不多了\n-27062\n資金剩餘 9556\n學再多技術線 都沒有比下跌就攤 抱股不賣來的高明 週末開始寫履歷 週一虧完就去工作吧 至少我盡力了" }},
+  { id:"a5", kind:"reply", status:"pending", recommend_reason:"popular: 👍5426/💬1422 2h內", rule_flags:[], draft:"",
+    target_post:{ author_handle:"max995995", likes:5426, replies:1422, posted_at:"2026-05-22T09:00:00Z",
+      url:"https://www.threads.com/@max995995/post/DYoeDdQk-cN", thread_excerpt:[],
+      text:"我自行宣布\n第二屆《今年股票損益最慘》大賽正式開始\n選手如下：\n月底結算最慘的送國賬電影票2張🍿" }},
+];
+
+const KB_ITEMS = [
+  { title:"HouseGuide.ai 產品描述", excerpt:"台灣房地產的 AI 數據分析平台。核心：用 AI 為新建案自動估價、追蹤都更／重劃區的市場行情雷達。" },
+  { title:"品牌 Persona", excerpt:"資深社群行銷專家，把複雜的房市數據轉成一般人聽得懂、有共鳴的內容。理性分析，用數據佐證。" },
+  { title:"目標受眾", excerpt:"28–50歲，關心買房、預售屋、都更、投資置產。他們在 Threads 上看到房市消息會想留言互動。" },
+  { title:"禁止事項 (Hard Rules)", excerpt:"不得提及競品品牌、不得提供投資建議、不得主動報價、不得偽裝成真人用戶。" },
+  { title:"熱門貼文門檻", excerpt:"最低讚數 100、最低留言 30、最長貼文年齡 72 小時、最低作者追蹤數 0。" },
+];
+
+// ── Micro components ───────────────────────────────────────────────────
+function Ic({ n, size=18, style }) {
+  return <span className="ic" style={{ width:size, height:size, ...style }}><i data-lucide={n}></i></span>;
+}
+
+function Btn({ children, variant="secondary", size="md", icon, disabled, onClick, full, style }) {
+  const [hov, setHov] = React.useState(false);
+  const s = { sm:{ h:30, px:10, fs:12.5, gap:5 }, md:{ h:36, px:14, fs:13.5, gap:7 }, lg:{ h:44, px:18, fs:15, gap:8 } }[size];
+  const pal = {
+    primary:{ bg:"var(--brand)", c:"#fff", bd:"var(--brand)", hbg:"var(--brand-hover)", hbd:"var(--brand-hover)" },
+    secondary:{ bg:"var(--surface-card)", c:"var(--text-strong)", bd:"var(--border-default)", hbg:"var(--surface-inset)", hbd:"var(--border-strong)" },
+    ghost:{ bg:"transparent", c:"var(--text-body)", bd:"transparent", hbg:"var(--surface-inset)", hbd:"transparent" },
+    danger:{ bg:"var(--surface-card)", c:"var(--danger-text)", bd:"var(--danger-bd)", hbg:"var(--danger-soft)", hbd:"var(--danger)" },
+  }[variant];
+  return (
+    <button onClick={onClick} disabled={disabled}
+      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ display:"inline-flex", alignItems:"center", justifyContent:"center",
+        gap:s.gap, height:s.h, padding:`0 ${s.px}px`, width:full?"100%":"auto",
+        font:`500 ${s.fs}px/1 var(--font-sans)`,
+        color: pal.c, background: hov&&!disabled ? pal.hbg : pal.bg,
+        border:`1px solid ${hov&&!disabled ? pal.hbd : pal.bd}`,
+        borderRadius:"var(--radius-md)", opacity:disabled?0.42:1,
+        cursor:disabled?"not-allowed":"pointer",
+        transition:"background 120ms, border-color 120ms",
+        whiteSpace:"nowrap", ...style }}>
+      {icon && <span className="ic" style={{ width:s.h*0.44, height:s.h*0.44 }}>{icon}</span>}
+      {children}
+    </button>
+  );
+}
+
+function Chip({ tone="neutral", label, dot=true }) {
+  const t = {
+    neutral:{ s:"var(--surface-inset)", bd:"var(--border-default)", tx:"var(--text-muted)", d:"var(--ink-400)" },
+    brand:{ s:"var(--brand-soft)", bd:"var(--brand-soft-bd)", tx:"var(--brand-700)", d:"var(--brand)" },
+    success:{ s:"var(--success-soft)", bd:"var(--success-bd)", tx:"var(--success-text)", d:"var(--success)" },
+    warning:{ s:"var(--warning-soft)", bd:"var(--warning-bd)", tx:"var(--warning-text)", d:"var(--warning)" },
+    danger:{ s:"var(--danger-soft)", bd:"var(--danger-bd)", tx:"var(--danger-text)", d:"var(--danger)" },
+    info:{ s:"var(--info-soft)", bd:"var(--info-bd)", tx:"var(--info-text)", d:"var(--info)" },
+  }[tone];
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"3px 10px 3px 8px",
+      font:`700 11px/1.5 var(--font-sans)`, color:t.tx, background:t.s,
+      border:`1px solid ${t.bd}`, borderRadius:"var(--radius-pill)", whiteSpace:"nowrap" }}>
+      {dot && <span style={{ width:7, height:7, borderRadius:"50%", background:t.d, flexShrink:0 }} />}
+      {label}
+    </span>
+  );
+}
+
+function Alert({ tone="warning", title, body }) {
+  const t = {
+    danger:{ s:"var(--danger-soft)", bd:"var(--danger-bd)", tx:"var(--danger-text)", ic:"var(--danger)", icon:"shield-alert" },
+    warning:{ s:"var(--warning-soft)", bd:"var(--warning-bd)", tx:"var(--warning-text)", ic:"var(--warning)", icon:"triangle-alert" },
+    info:{ s:"var(--info-soft)", bd:"var(--info-bd)", tx:"var(--info-text)", ic:"var(--info)", icon:"info" },
+  }[tone];
+  return (
+    <div role="alert" style={{ display:"flex", gap:10, padding:"11px 14px",
+      background:t.s, border:`1px solid ${t.bd}`, borderRadius:"var(--radius-lg)" }}>
+      <Ic n={t.icon} size={17} style={{ color:t.ic, flexShrink:0, marginTop:1 }} />
+      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+        {title && <div style={{ font:`600 13px/1.4 var(--font-sans)`, color:t.tx }}>{title}</div>}
+        {body && <div style={{ font:`13px/1.55 var(--font-sans)`, color:t.tx, opacity:.9 }}>{body}</div>}
+      </div>
+    </div>
+  );
+}
+
+function NavRow({ icon, label, active, count, onClick }) {
+  const [hov, setHov] = React.useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
+      style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"8px 10px",
+        font:`500 13.5px/1 var(--font-sans)`, textAlign:"left",
+        color: active?"var(--brand-700)":"var(--text-body)",
+        background: active?"var(--brand-soft)": hov?"var(--surface-inset)":"transparent",
+        border:`1px solid ${active?"var(--brand-soft-bd)":"transparent"}`,
+        borderRadius:"var(--radius-md)", cursor:"pointer",
+        transition:"background 120ms" }}>
+      <span className="ic" style={{ width:17, height:17,
+        color:active?"var(--brand-600)":"var(--text-muted)" }}>{icon}</span>
+      <span style={{ flex:1 }}>{label}</span>
+      {count != null && (
+        <span style={{ font:`700 11px/1 var(--font-mono)`, padding:"2px 7px",
+          color:active?"var(--brand-700)":"var(--text-muted)",
+          background:active?"var(--white)":"var(--surface-inset)",
+          border:"1px solid var(--border-subtle)", borderRadius:"var(--radius-pill)" }}>
+          {count}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────
+function Sidebar({ screen, setScreen, pendingCount }) {
+  return (
+    <aside style={{ width:248, flexShrink:0, display:"flex", flexDirection:"column",
+      background:"var(--surface-card)", borderRight:"1px solid var(--border-subtle)",
+      padding:"18px 12px 20px" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:22, padding:"0 2px" }}>
+        <img src="../../assets/logo-mark.svg" alt="" style={{ width:30, height:30 }} />
+        <div>
+          <div style={{ font:`700 15px/1.1 var(--font-sans)`, color:"var(--text-strong)" }}>Agent MKT</div>
+          <div style={{ font:`12px/1 var(--font-mono)`, color:"var(--text-muted)", marginTop:2 }}>HouseGuide.ai</div>
+        </div>
+      </div>
+
+      <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+        <NavRow icon={<i data-lucide="radar"/>} label="海巡" active={screen==="scout"} onClick={() => setScreen("scout")} />
+        <NavRow icon={<i data-lucide="inbox"/>} label="審核佇列" count={pendingCount} active={screen==="review"} onClick={() => setScreen("review")} />
+        <NavRow icon={<i data-lucide="book-marked"/>} label="知識庫" active={screen==="kb"} onClick={() => setScreen("kb")} />
+      </div>
+
+      <div style={{ marginTop:"auto", padding:"14px 4px 0", borderTop:"1px solid var(--border-subtle)" }}>
+        <div style={{ font:`11px/1.5 var(--font-mono)`, color:"var(--text-faint)" }}>
+          <div>v0.1.0 · PoC</div>
+          <div style={{ marginTop:3 }}>非商業用途</div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ── Scout Screen ───────────────────────────────────────────────────────
+function ScoutScreen({ running, onRun }) {
+  const keywords = ["房地產","買房","台灣房市","新建案","重劃區","都更"];
+  return (
+    <div style={{ flex:1, overflowY:"auto", padding:"28px 36px" }}>
+      <div style={{ maxWidth:740 }}>
+        <div style={{ font:`700 20px/1.2 var(--font-sans)`, color:"var(--text-strong)", marginBottom:4 }}>海巡設定</div>
+        <div style={{ font:`14px/1.6 var(--font-sans)`, color:"var(--text-muted)", marginBottom:28 }}>
+          在 Threads 上搜尋熱門貼文，依門檻過濾後加入審核佇列。
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20, marginBottom:24 }}>
+          <div style={{ background:"var(--surface-card)", border:"1px solid var(--border-subtle)", borderRadius:"var(--radius-lg)", padding:18 }}>
+            <div style={{ font:`600 12px/1 var(--font-mono)`, letterSpacing:"0.06em", textTransform:"uppercase", color:"var(--text-muted)", marginBottom:14 }}>關鍵字</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+              {keywords.map(k => (
+                <span key={k} style={{ display:"inline-flex", alignItems:"center", gap:5,
+                  padding:"5px 11px", font:`500 13px/1 var(--font-sans)`,
+                  background:"var(--brand-soft)", color:"var(--brand-700)",
+                  border:"1px solid var(--brand-soft-bd)", borderRadius:"var(--radius-pill)" }}>
+                  {k}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ background:"var(--surface-card)", border:"1px solid var(--border-subtle)", borderRadius:"var(--radius-lg)", padding:18 }}>
+            <div style={{ font:`600 12px/1 var(--font-mono)`, letterSpacing:"0.06em", textTransform:"uppercase", color:"var(--text-muted)", marginBottom:14 }}>熱門門檻</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {[["最低讚數","100"],["最低留言","30"],["最長貼文年齡","72h"]].map(([l,v]) => (
+                <div key={l} style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ font:`14px/1 var(--font-sans)`, color:"var(--text-body)" }}>{l}</span>
+                  <span style={{ font:`500 14px/1 var(--font-mono)`, color:"var(--text-strong)" }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+          <Btn variant="primary" size="lg"
+            icon={running ? <span className="ic spin"><i data-lucide="radar"/></span> : <i data-lucide="radar"/>}
+            disabled={running} onClick={onRun}>
+            {running ? "海巡中…" : "執行海巡"}
+          </Btn>
+          {!running && <span style={{ font:`13px/1 var(--font-sans)`, color:"var(--text-faint)" }}>上次：今天 11:08</span>}
+        </div>
+
+        <div style={{ marginTop:32, padding:18,
+          background:"var(--surface-card)", border:"1px solid var(--border-subtle)", borderRadius:"var(--radius-lg)" }}>
+          <div style={{ font:`600 12px/1 var(--font-mono)`, letterSpacing:"0.06em", textTransform:"uppercase", color:"var(--text-muted)", marginBottom:12 }}>上次海巡結果</div>
+          <div style={{ display:"flex", gap:28 }}>
+            {[["瀏覽貼文","187"],["通過門檻","15"],["加入佇列","15"],["偵測訊號","無"]].map(([l,v]) => (
+              <div key={l}>
+                <div style={{ font:`700 22px/1 var(--font-mono)`, color:"var(--text-strong)", fontVariantNumeric:"tabular-nums" }}>{v}</div>
+                <div style={{ font:`12px/1 var(--font-sans)`, color:"var(--text-muted)", marginTop:4 }}>{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Knowledge Base ─────────────────────────────────────────────────────
+function KBScreen() {
+  return (
+    <div style={{ flex:1, overflowY:"auto", padding:"28px 36px" }}>
+      <div style={{ maxWidth:680 }}>
+        <div style={{ font:`700 20px/1.2 var(--font-sans)`, color:"var(--text-strong)", marginBottom:4 }}>知識庫</div>
+        <div style={{ font:`14px/1.6 var(--font-sans)`, color:"var(--text-muted)", marginBottom:24 }}>
+          AI 小編產生草稿時使用的品牌知識與規範。
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {KB_ITEMS.map((item, i) => (
+            <div key={i} style={{ background:"var(--surface-card)", border:"1px solid var(--border-subtle)",
+              borderRadius:"var(--radius-lg)", padding:"16px 18px", display:"flex", gap:14, alignItems:"flex-start" }}>
+              <span className="ic" style={{ width:17, height:17, color:"var(--brand-600)", marginTop:1, flexShrink:0 }}>
+                <i data-lucide="file-text"/>
+              </span>
+              <div>
+                <div style={{ font:`600 14px/1.3 var(--font-sans)`, color:"var(--text-strong)", marginBottom:4 }}>{item.title}</div>
+                <div style={{ font:`13.5px/1.6 var(--font-sans)`, color:"var(--text-muted)" }}>{item.excerpt}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop:14 }}>
+          <Alert tone="info" body="知識庫編輯功能即將推出（階段三）。" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Review Screen ──────────────────────────────────────────────────────
+function PostBlock({ post }) {
+  const age = post.posted_at ? (() => {
+    const h = Math.round((Date.now() - new Date(post.posted_at))/3.6e6);
+    return h < 24 ? h+"h內" : Math.round(h/24)+"天前";
+  })() : "";
+  return (
+    <div style={{ background:"var(--surface-inset)", border:"1px solid var(--border-subtle)",
+      borderRadius:"var(--radius-lg)", padding:16 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+          <AvatarMini handle={post.author_handle} />
+          <a href={post.url} target="_blank" rel="noreferrer"
+            style={{ font:`600 13.5px/1 var(--font-sans)`, color:"var(--text-strong)", textDecoration:"none" }}>
+            @{post.author_handle}
+          </a>
+          {age && <span style={{ font:`12px/1 var(--font-mono)`, color:"var(--text-faint)" }}>{age}</span>}
+        </div>
+        <div style={{ display:"flex", gap:6 }}>
+          <MetricPill emoji="👍" value={post.likes} />
+          <MetricPill emoji="💬" value={post.replies} />
+        </div>
+      </div>
+      <div style={{ font:`14.5px/var(--lh-body) var(--font-sans)`, color:"var(--text-body)",
+        whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{post.text}</div>
+      {post.thread_excerpt && post.thread_excerpt.length > 0 && (
+        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px solid var(--border-subtle)",
+          font:`12.5px/1.5 var(--font-sans)`, color:"var(--text-muted)" }}>
+          留言串氣氛：{post.thread_excerpt.join(" ｜ ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AvatarMini({ handle }) {
+  const c = handle || "?";
+  let h = 0; for (let i=0;i<c.length;i++) h=(h*31+c.charCodeAt(i))%360;
+  return (
+    <span style={{ width:28, height:28, borderRadius:"50%", flexShrink:0, display:"grid",
+      placeItems:"center", fontSize:12, fontWeight:700,
+      background:`oklch(0.92 0.05 ${h})`, color:`oklch(0.45 0.09 ${h})`,
+      border:"1px solid var(--border-subtle)" }}>
+      {c[0].toUpperCase()}
+    </span>
+  );
+}
+
+function MetricPill({ emoji, value }) {
+  return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, padding:"3px 9px",
+      font:`500 12px/1 var(--font-mono)`, color:"var(--text-body)",
+      background:"var(--surface-card)", border:"1px solid var(--border-subtle)",
+      borderRadius:"var(--radius-pill)", fontVariantNumeric:"tabular-nums" }}>
+      <span style={{ fontSize:11 }}>{emoji}</span>
+      {value >= 1000 ? (value/1000).toFixed(1)+"k" : value}
+    </span>
+  );
+}
+
+// ── Single review card ────────────────────────────────────────────────
+function ReviewCard({ item, onApprove, onSkip }) {
+  const [edited, setEdited] = React.useState(item.edited_draft ?? item.draft ?? "");
+  const [busy, setBusy] = React.useState(false);
+  const isEmpty = edited.trim() === "";
+  const hasRule = item.rule_flags.length > 0;
+  const charLen = edited.length;
+
+  const doApprove = () => {
+    if (busy || hasRule || isEmpty) return;
+    setBusy(true);
+    setTimeout(() => { setBusy(false); onApprove(item.id, edited); }, 700);
+  };
+
+  const doSkip = () => onSkip(item.id);
+
+  return (
+    <div style={{ background:"var(--surface-card)", border:"1px solid var(--border-subtle)",
+      borderRadius:"var(--radius-xl)", padding:"20px 22px",
+      display:"flex", flexDirection:"column", gap:14,
+      boxShadow:"var(--shadow-sm)" }}>
+
+
+
+      {/* Rule flag alert */}
+      {hasRule && <Alert tone="danger" title="硬規則命中（不可送出）" body={item.rule_flags.join("、")} />}
+
+      {/* Original post */}
+      {item.target_post && (
+        <div>
+          <div style={{ font:`600 11px/1 var(--font-mono)`, letterSpacing:"0.06em",
+            textTransform:"uppercase", color:"var(--text-muted)", marginBottom:8 }}>
+            原文（必讀上下文）
+          </div>
+          <PostBlock post={item.target_post} />
+        </div>
+      )}
+
+      {/* Draft textarea */}
+      <div>
+        <div style={{ marginBottom:6 }}>
+          <div style={{ font:`600 11px/1 var(--font-mono)`, letterSpacing:"0.06em",
+            textTransform:"uppercase", color:"var(--text-muted)" }}>
+            {isEmpty ? "AI 回應草稿（階段二尚未產生）" : "AI 草稿（可直接改寫）"}
+          </div>
+        </div>
+        <textarea value={edited} onChange={e => setEdited(e.target.value)} rows={3}
+          placeholder={isEmpty ? "目前僅海巡（階段一）。階段二將由 AI 為這篇貼文產生回應草稿。" : ""}
+          style={{ width:"100%", resize:"vertical", boxSizing:"border-box",
+            font:`15px/var(--lh-relaxed) var(--font-sans)`,
+            color: isEmpty ? "var(--text-faint)" : "var(--text-strong)",
+            background: isEmpty ? "var(--surface-sunken)" : "var(--surface-card)",
+            border: isEmpty ? "1.5px dashed var(--border-strong)" : "1px solid var(--border-default)",
+            borderRadius:"var(--radius-md)", padding:"10px 12px", outline:"none" }} />
+      </div>
+
+      {/* Actions */}
+      <div style={{ display:"flex", gap:10, justifyContent:"flex-end", alignItems:"center" }}>
+        <div style={{ flex:1, font:`12px/1.5 var(--font-sans)`, color:"var(--text-faint)" }}>
+          {isEmpty ? "階段一：確認熱門貼文有正確撈回即可。" : "送出動作由你觸發，AI 不自動送。"}
+        </div>
+        <Btn variant="ghost" icon={<i data-lucide="x"/>} onClick={doSkip}>跳過</Btn>
+        <Btn variant="primary"
+          icon={busy ? <span className="ic spin"><i data-lucide="loader"/></span> : <i data-lucide="check"/>}
+          disabled={busy || hasRule || isEmpty} onClick={doApprove}>
+          核可
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function ReviewScreen({ items, setItems }) {
+  const [revCount, setRevCount] = React.useState(0);
+  const [apprCount, setApprCount] = React.useState(0);
+  const [toast, setToast] = React.useState(null);
+
+  const pending = items.filter(it => it.status === "pending");
+  const rate = revCount ? (apprCount / revCount * 100).toFixed(0) : 0;
+  const fatigue = revCount >= 5 && apprCount / revCount >= 0.95;
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  const handleApprove = (id, editedDraft) => {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, status:"sent", edited_draft:editedDraft } : it));
+    setRevCount(c => c + 1);
+    setApprCount(c => c + 1);
+    showToast("✓ 已送出");
+  };
+
+  const handleSkip = (id) => {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, status:"rejected" } : it));
+    setRevCount(c => c + 1);
+    showToast("跳過", "neutral");
+  };
+
+  if (pending.length === 0) {
+    return (
+      <div style={{ flex:1, display:"grid", placeItems:"center" }}>
+        <div style={{ textAlign:"center" }}>
+          <span className="ic" style={{ width:48, height:48, color:"var(--text-faint)", margin:"0 auto 14px", display:"grid", placeItems:"center" }}>
+            <i data-lucide="inbox"/>
+          </span>
+          <div style={{ font:`700 18px/1.3 var(--font-sans)`, color:"var(--text-strong)", marginBottom:8 }}>沒有待審項目</div>
+          <div style={{ font:`14px/1.6 var(--font-sans)`, color:"var(--text-muted)" }}>先執行海巡，等 AI 產生草稿後再回來。</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Sub-header */}
+      <div style={{ padding:"12px 28px", borderBottom:"1px solid var(--border-subtle)",
+        background:"var(--surface-card)", display:"flex", alignItems:"center", gap:20, flexShrink:0 }}>
+        <div style={{ font:`13px/1 var(--font-mono)`, color:"var(--text-muted)", fontVariantNumeric:"tabular-nums" }}>
+          待審 <span style={{ color:"var(--text-strong)", fontWeight:700 }}>{pending.length}</span> 筆
+        </div>
+        <div style={{ font:`13px/1 var(--font-mono)`, color:"var(--text-muted)" }}>
+          已審 <span style={{ color:"var(--text-strong)", fontWeight:600 }}>{revCount}</span>
+          {"  "}通過率 <span style={{ color: parseFloat(rate) >= 95 ? "var(--warning-text)" : "var(--text-strong)", fontWeight:600 }}>
+            {revCount ? rate + "%" : "–"}
+          </span>
+        </div>
+      </div>
+
+      {/* Scrollable feed of all items */}
+      <div style={{ flex:1, overflowY:"auto", padding:"24px 36px 48px" }}>
+        <div style={{ maxWidth:760, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+          {fatigue && <Alert tone="warning" title="通過率 ≥ 95%，可能審核疲勞" body="請確認你有逐條讀過原文。" />}
+          {pending.map(item => (
+            <ReviewCard key={item.id} item={item} onApprove={handleApprove} onSkip={handleSkip} />
+          ))}
+        </div>
+      </div>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)",
+          padding:"10px 20px", borderRadius:"var(--radius-lg)",
+          background: toast.type === "success" ? "var(--ink-900)" : "var(--ink-700)",
+          color:"#fff", font:`500 13.5px/1 var(--font-sans)`,
+          boxShadow:"var(--shadow-pop)", pointerEvents:"none" }}>
+          {toast.msg}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── App ─────────────────────────────────────────────────────────────────
+function App() {
+  const [screen, setScreen] = React.useState("review");
+  const [items, setItems] = React.useState(QUEUE);
+  const [scoutRunning, setScoutRunning] = React.useState(false);
+
+  const pendingCount = items.filter(i => i.status==="pending").length;
+
+  const runScout = () => {
+    setScoutRunning(true);
+    setTimeout(() => { setScoutRunning(false); setScreen("review"); }, 2400);
+  };
+
+  React.useEffect(() => {
+    const t = setInterval(() => { if (window.lucide) { lucide.createIcons(); clearInterval(t); } }, 80);
+    return () => clearInterval(t);
+  }, [screen, items]);
+
+  return (
+    <div style={{ display:"flex", height:"100vh", background:"var(--surface-page)" }}>
+      <Sidebar screen={screen} setScreen={setScreen} pendingCount={pendingCount} />
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        {/* Top nav bar */}
+        <header style={{ height:52, borderBottom:"1px solid var(--border-subtle)",
+          background:"var(--surface-card)", display:"flex", alignItems:"center",
+          padding:"0 28px", gap:16, flexShrink:0 }}>
+          <span style={{ font:`600 12px/1 var(--font-mono)`, letterSpacing:"0.08em",
+            textTransform:"uppercase", color:"var(--text-muted)" }}>
+            { screen==="scout"?"Scout · 海巡" : screen==="kb"?"知識庫" : "審核佇列" }
+          </span>
+          <div style={{ marginLeft:"auto", display:"flex", gap:10 }}>
+            {screen==="review" && (
+              <Btn variant="secondary" size="sm" icon={<i data-lucide="radar"/>}
+                onClick={() => setScreen("scout")}>執行海巡</Btn>
+            )}
+          </div>
+        </header>
+
+        {screen==="scout" && <ScoutScreen running={scoutRunning} onRun={runScout} />}
+        {screen==="review" && <ReviewScreen items={items} setItems={setItems} />}
+        {screen==="kb" && <KBScreen />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

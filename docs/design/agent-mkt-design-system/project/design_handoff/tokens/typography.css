@@ -1,0 +1,51 @@
+/* ============================================================
+   agent-mkt · Typography tokens
+   ============================================================ */
+
+:root {
+  /* ---- Families ---- */
+  --font-sans:  "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+                system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Noto Serif TC", "Songti TC", Georgia, serif;
+  --font-mono:  "JetBrains Mono", "SF Mono", ui-monospace, Menlo,
+                "Roboto Mono", monospace;
+
+  /* ---- Weights ---- */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+  --fw-black:    900; /* @kind font */
+
+  /* ---- Type scale (px) ----
+     Tuned for CJK density: generous body, restrained display. */
+  --fs-display:  44px;  /* hero / marketing headline   (serif) */
+  --fs-title:    30px;  /* page title                  (serif) */
+  --fs-h1:       23px;  /* section heading             (sans)  */
+  --fs-h2:       19px;  /* card heading                (sans)  */
+  --fs-h3:       16px;  /* sub-heading / emphasised     */
+  --fs-body:     15px;  /* default body / draft text    */
+  --fs-sm:       13.5px;/* secondary / meta             */
+  --fs-xs:       12px;  /* labels / captions            */
+  --fs-mono:     13px;  /* metrics / handles / code     */
+
+  /* ---- Line heights ---- */
+  --lh-tight:    1.18; /* @kind font */
+  --lh-snug:     1.4; /* @kind font */
+  --lh-body:     1.7; /* @kind font */
+  --lh-relaxed:  1.85; /* @kind font */
+
+  /* ---- Letter spacing ---- */
+  --ls-tight:    -0.02em; /* @kind font */
+  --ls-normal:   0; /* @kind font */
+  --ls-label:    0.04em; /* @kind font */
+  --ls-mono:     0.01em; /* @kind font */
+
+  /* ---- Semantic roles ---- */
+  --text-display:  var(--fw-black)   var(--fs-display)/var(--lh-tight) var(--font-serif);
+  --text-title:    var(--fw-bold)    var(--fs-title)/var(--lh-tight)   var(--font-serif);
+  --text-h1:       var(--fw-bold)    var(--fs-h1)/var(--lh-snug)       var(--font-sans);
+  --text-h2:       var(--fw-bold)    var(--fs-h2)/var(--lh-snug)       var(--font-sans);
+  --text-h3:       var(--fw-medium)  var(--fs-h3)/var(--lh-snug)       var(--font-sans);
+  --text-default:  var(--fw-regular) var(--fs-body)/var(--lh-body)     var(--font-sans);
+  --text-small:    var(--fw-regular) var(--fs-sm)/var(--lh-body)       var(--font-sans);
+}

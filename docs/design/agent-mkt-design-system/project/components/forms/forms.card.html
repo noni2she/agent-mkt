@@ -1,0 +1,40 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Forms · field & draft editor" subtitle="Field / TextArea with character budget + empty state" -->
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+  body { margin: 0; padding: 22px; background: var(--surface-page); font-family: var(--font-sans); }
+  .grid { display: grid; grid-template-columns: 240px 1fr; gap: 20px; align-items: start; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { Field, TextArea } = window.AgentMktDesignSystem_ec4390;
+  function Demo() {
+    const [kw, setKw] = React.useState("房地產");
+    const [draft, setDraft] = React.useState("日本泡沫提醒一件事：高槓桿＋普遍樂觀很危險，買房別只看價格，利率和流動性也要算進來 📊");
+    return (
+      <div className="grid">
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <Field label="關鍵字" mono value={kw} onChange={e => setKw(e.target.value)} placeholder="輸入關鍵字" />
+          <Field label="最低讚數" type="number" mono hint="popular 門檻" defaultValue="500" />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <TextArea label="AI 草稿（可直接改寫）" maxHint={60} value={draft} onChange={e => setDraft(e.target.value)} rows={3} />
+          <TextArea label="AI 回應草稿（階段二尚未產生）" empty rows={2}
+            placeholder="目前僅海巡（階段一）。階段二將由 AI 為這篇貼文產生回應草稿。" />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById("root")).render(<Demo />);
+</script>
+</body>
+</html>
