@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { writeFileSync, mkdirSync } from "node:fs";
 import type { ScoutCandidate } from "../core/protocol.js";
 import { loadAgentDef } from "./agentDef.js";
 import { reviewCandidate } from "./reviewer.js";
@@ -16,7 +15,7 @@ export interface ReviewRecord {
   created_at: string;
 }
 
-/** 對一批 scout 候選跑 LLM 判斷+草稿，寫 data/review-queue.json，回傳相關的。 */
+/** 對一批 scout 候選跑 LLM 判斷+草稿，存 SQLite，回傳相關的。 */
 export async function runReview(candidates: ScoutCandidate[], keyword: string, tenant: string): Promise<ReviewRecord[]> {
   const def = loadAgentDef();
   const records: ReviewRecord[] = [];
@@ -54,8 +53,6 @@ export async function runReview(candidates: ScoutCandidate[], keyword: string, t
     }
   }
   const relevant = records.filter((r) => r.relevant);
-  mkdirSync("data", { recursive: true });
-  writeFileSync("data/review-queue.json", JSON.stringify(relevant, null, 2), "utf8");
-  console.log(`[review] ${candidates.length} 篇 → 相關 ${relevant.length} 篇，已存 SQLite，並寫入 data/review-queue.json`);
+  console.log(`[review] ${candidates.length} 篇 → 相關 ${relevant.length} 篇，已存 SQLite`);
   return relevant;
 }
