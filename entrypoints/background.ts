@@ -50,10 +50,18 @@ export default defineBackground(() => {
     }
     const tabId = tab.id;
     const serp = command.serpType === "recent" ? "serp_type=tags&filter=recent" : "serp_type=default";
-    const searchUrl = `https://www.threads.com/search?q=${encodeURIComponent(command.keyword)}&${serp}`;
+    const encodedKeyword = encodeURIComponent(command.keyword);
+    const searchUrl = `https://www.threads.com/search?q=${encodedKeyword}&${serp}`;
     try {
-      console.log("[hands] scout: 導頁到搜尋頁…", searchUrl);
-      await navigateAndWait(tabId, searchUrl);
+      const currentTab = await chrome.tabs.get(tabId);
+      const currentUrl = currentTab.url ?? "";
+      const currentQuery = currentUrl.match(/[?&]q=([^&]*)/)?.[1];
+      if (currentUrl.startsWith("https://www.threads.com/search?q=") && currentQuery === encodedKeyword) {
+        console.log("[hands] scout: 已在同關鍵字搜尋頁，跳過導頁", currentUrl);
+      } else {
+        console.log("[hands] scout: 導頁到搜尋頁…", searchUrl);
+        await navigateAndWait(tabId, searchUrl);
+      }
       const res = await chrome.tabs.sendMessage(tabId, {
         type: "scout",
         keyword: command.keyword,

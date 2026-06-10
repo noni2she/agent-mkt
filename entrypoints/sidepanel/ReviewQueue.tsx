@@ -43,28 +43,38 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     window.setTimeout(() => setToast(null), 2200);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ resetPosition = false, showLoading = false } = {}) => {
+    if (showLoading) setLoading(true);
     setError(null);
     try {
       const data = await fetchReviews();
       setItems(data);
-      setIdx(0);
+      setIdx((oldIdx) => {
+        if (resetPosition) return 0;
+        return data.length ? Math.min(oldIdx, data.length - 1) : 0;
+      });
       onCountChange?.(data.length);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [onCountChange]);
 
   useEffect(() => {
-    void load();
+    void load({ resetPosition: true, showLoading: true });
+  }, [load]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      void load();
+    }, 4000);
+    return () => window.clearInterval(timer);
   }, [load]);
 
   useEffect(() => {
     setEdited(current?.draft ?? "");
-  }, [current?.id, current?.draft]);
+  }, [current?.id]);
 
   const advanceAfterRemoval = useCallback((removedId: string) => {
     setItems((prev) => {
@@ -135,7 +145,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     return (
       <div className="grid flex-1 place-items-center gap-3 p-6 text-center">
         <AlertBar tone="warning" title="後端尚未連線">{error}</AlertBar>
-        <Button variant="secondary" icon={<RefreshCw />} onClick={() => void load()}>重新整理</Button>
+        <Button variant="secondary" icon={<RefreshCw />} onClick={() => void load({ resetPosition: true, showLoading: true })}>重新整理</Button>
       </div>
     );
   }
@@ -161,7 +171,10 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
           <div className="font-[var(--font-mono)] text-[13px] leading-none text-[var(--text-strong)] [font-variant-numeric:tabular-nums]">{progress}</div>
           <div className="mt-1 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">已審 {revCount} · 通過 {apprCount}</div>
         </div>
-        <StatusChip status="pending" />
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" icon={<RefreshCw />} disabled={loading} onClick={() => void load({ resetPosition: true })}>重新整理</Button>
+          <StatusChip status="pending" />
+        </div>
       </div>
 
       {fatigue ? (
