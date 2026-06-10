@@ -114,5 +114,7 @@ export default defineBackground(() => {
   void pollOnce();
   setInterval(() => void pollOnce(), 5_000);
 
+  chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true }).catch(() => {});
+
   console.log("[hands] background 啟動，開始 polling", BASE);
 });

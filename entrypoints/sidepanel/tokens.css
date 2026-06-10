@@ -1,0 +1,266 @@
+/* ============================================================
+   agent-mkt · Color tokens
+   A monochrome, Threads-adjacent ink/paper base with a single
+   confident "patrol" teal-green brand, plus the review-console
+   safety semantics: amber caution, red stop, blue info, green go.
+   ============================================================ */
+
+:root {
+  /* ---- Neutral ink scale (cool-neutral, near-black text) ---- */
+  --ink-950: #14171a;
+  --ink-900: #1b1f24;
+  --ink-800: #262b31;
+  --ink-700: #353c44;
+  --ink-600: #4c545d;
+  --ink-500: #69727b;
+  --ink-400: #8b949d;
+  --ink-300: #b6bdc4;
+  --ink-200: #d7dbe0;
+  --ink-150: #e4e7ea;
+  --ink-100: #edeff1;
+  --ink-50: #f5f6f7;
+
+  /* ---- Paper (warm-white surfaces) ---- */
+  --paper: #fcfcfb;
+  --paper-sunk: #f4f4f2;
+  --white: #ffffff;
+
+  /* ---- Brand · patrol teal-green (go / safe / active) ---- */
+  --brand-900: #064f41;
+  --brand-700: #0a6856;
+  --brand-600: #0d8268;
+  --brand-500: #12a07f;
+  --brand-300: #6fc9b3;
+  --brand-100: #d4efe7;
+  --brand-50: #ecf7f3;
+
+  /* ---- Semantic · caution / amber (審核 warning) ---- */
+  --amber-700: #92600e;
+  --amber-600: #b07a17;
+  --amber-500: #d29a2b;
+  --amber-100: #fbedc7;
+  --amber-50: #fef7e6;
+
+  /* ---- Semantic · stop / red (hard-rule violation) ---- */
+  --red-700: #9c2b2b;
+  --red-600: #c0392f;
+  --red-500: #d8514a;
+  --red-100: #f7d8d6;
+  --red-50: #fcecea;
+
+  /* ---- Semantic · info / blue ---- */
+  --blue-700: #1f4f86;
+  --blue-600: #2a6cb0;
+  --blue-500: #3d86cf;
+  --blue-100: #d8e7f7;
+  --blue-50: #eaf2fb;
+
+  /* ---- Threads-metric coral (likes / hearts accent) ---- */
+  --coral-600: #d6455a;
+  --coral-100: #f9d9de;
+
+  /* Text */
+  --text-strong: var(--ink-950);
+  --text-body: var(--ink-800);
+  --text-muted: var(--ink-500);
+  --text-faint: var(--ink-400);
+  --text-inverse: var(--paper);
+  --text-link: var(--brand-700);
+
+  /* Surfaces */
+  --surface-page: var(--paper);
+  --surface-card: var(--white);
+  --surface-sunken: var(--paper-sunk);
+  --surface-inset: var(--ink-50);
+  --surface-ink: var(--ink-950);
+
+  /* Borders */
+  --border-subtle: var(--ink-100);
+  --border-default: var(--ink-200);
+  --border-strong: var(--ink-300);
+
+  /* Brand */
+  --brand: var(--brand-600);
+  --brand-hover: var(--brand-700);
+  --brand-pressed: var(--brand-900);
+  --brand-soft: var(--brand-50);
+  --brand-soft-bd: var(--brand-100);
+  --on-brand: #ffffff;
+
+  /* Status — go / success */
+  --success: var(--brand-600);
+  --success-soft: var(--brand-50);
+  --success-bd: var(--brand-100);
+  --success-text: var(--brand-700);
+
+  /* Status — caution / pending review */
+  --warning: var(--amber-500);
+  --warning-soft: var(--amber-50);
+  --warning-bd: var(--amber-100);
+  --warning-text: var(--amber-700);
+
+  /* Status — stop / blocked / hard-rule */
+  --danger: var(--red-600);
+  --danger-soft: var(--red-50);
+  --danger-bd: var(--red-100);
+  --danger-text: var(--red-700);
+
+  /* Status — info */
+  --info: var(--blue-600);
+  --info-soft: var(--blue-50);
+  --info-bd: var(--blue-100);
+  --info-text: var(--blue-700);
+
+  /* Focus ring */
+  --ring: color-mix(in srgb, var(--brand-500) 45%, transparent);
+
+  /* ---- Families ---- */
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: "Noto Serif TC", "Songti TC", Georgia, serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo,
+    "Roboto Mono", monospace;
+
+  /* ---- Weights ---- */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 700;
+  --fw-black: 900;
+
+  /* ---- Type scale (px) ---- */
+  --fs-display: 44px;
+  --fs-title: 30px;
+  --fs-h1: 23px;
+  --fs-h2: 19px;
+  --fs-h3: 16px;
+  --fs-body: 15px;
+  --fs-sm: 13.5px;
+  --fs-xs: 12px;
+  --fs-mono: 13px;
+
+  /* ---- Line heights ---- */
+  --lh-tight: 1.18;
+  --lh-snug: 1.4;
+  --lh-body: 1.7;
+  --lh-relaxed: 1.85;
+
+  /* ---- Letter spacing ---- */
+  --ls-tight: -0.02em;
+  --ls-normal: 0;
+  --ls-label: 0.04em;
+  --ls-mono: 0.01em;
+
+  /* ---- Semantic roles ---- */
+  --text-display: var(--fw-black) var(--fs-display) / var(--lh-tight) var(--font-serif);
+  --text-title: var(--fw-bold) var(--fs-title) / var(--lh-tight) var(--font-serif);
+  --text-h1: var(--fw-bold) var(--fs-h1) / var(--lh-snug) var(--font-sans);
+  --text-h2: var(--fw-bold) var(--fs-h2) / var(--lh-snug) var(--font-sans);
+  --text-h3: var(--fw-medium) var(--fs-h3) / var(--lh-snug) var(--font-sans);
+  --text-default: var(--fw-regular) var(--fs-body) / var(--lh-body) var(--font-sans);
+  --text-small: var(--fw-regular) var(--fs-sm) / var(--lh-body) var(--font-sans);
+
+  /* ---- Spacing scale (4px base) ---- */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ---- Corner radii ---- */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 22px;
+  --radius-pill: 999px;
+
+  /* ---- Border widths ---- */
+  --bw-hair: 1px;
+  --bw: 1.5px;
+
+  /* ---- Elevation ---- */
+  --shadow-xs: 0 1px 2px rgba(20, 23, 26, 0.05);
+  --shadow-sm: 0 1px 2px rgba(20, 23, 26, 0.06),
+    0 2px 6px rgba(20, 23, 26, 0.05);
+  --shadow-card: 0 1px 3px rgba(20, 23, 26, 0.06),
+    0 8px 24px -12px rgba(20, 23, 26, 0.14);
+  --shadow-pop: 0 6px 16px -4px rgba(20, 23, 26, 0.12),
+    0 12px 40px -8px rgba(20, 23, 26, 0.18);
+  --shadow-modal: 0 24px 64px -16px rgba(20, 23, 26, 0.28);
+  --shadow-focus: 0 0 0 3px var(--ring);
+
+  /* ---- Motion ---- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 280ms;
+
+  /* ---- Layout ---- */
+  --container: 1200px;
+  --reading: 720px;
+  --sidebar-w: 248px;
+  --console-rail: 320px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font: var(--text-default);
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, p, figure { margin: 0; }
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+
+strong, b { font-weight: var(--fw-bold); }
+
+code, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+::selection {
+  background: var(--brand-100);
+  color: var(--brand-900);
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}
+
+.tnum { font-variant-numeric: tabular-nums; }
+
+.u-display { font: var(--text-display); letter-spacing: var(--ls-tight); color: var(--text-strong); }
+.u-title { font: var(--text-title); letter-spacing: var(--ls-tight); color: var(--text-strong); }
+.u-mono { font-family: var(--font-mono); letter-spacing: var(--ls-mono); }
+
+.u-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

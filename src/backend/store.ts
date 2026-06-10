@@ -73,3 +73,43 @@ export function getProcessedIds(tenant: string): string[] {
   }>;
   return rows.map((r) => r.post_id);
 }
+
+export interface ReviewListItem {
+  id: string;
+  post: unknown; // ScoutCandidate（由 post_json 解析）
+  reason: string;
+  draft: string;
+  status: string;
+  created_at: string;
+}
+
+/** 取某租戶「相關且 pending」的審核項目，新到舊。 */
+export function getReviews(tenant: string): ReviewListItem[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, post_json, reason, draft, status, created_at
+       FROM review_item
+       WHERE tenant_id = ? AND relevant = 1 AND status = 'pending'
+       ORDER BY created_at DESC`,
+    )
+    .all(tenant) as Array<{ id: string; post_json: string; reason: string; draft: string; status: string; created_at: string }>;
+  return rows.map((r) => ({
+    id: r.id,
+    post: JSON.parse(r.post_json),
+    reason: r.reason,
+    draft: r.draft,
+    status: r.status,
+    created_at: r.created_at,
+  }));
+}
+
+/** 更新一筆 review_item 的 status 與/或 draft。 */
+export function updateReviewItem(id: string, patch: { status?: string; draft?: string }): void {
+  const sets: string[] = [];
+  const vals: unknown[] = [];
+  if (patch.status !== undefined) { sets.push("status = ?"); vals.push(patch.status); }
+  if (patch.draft !== undefined) { sets.push("draft = ?"); vals.push(patch.draft); }
+  if (!sets.length) return;
+  vals.push(id);
+  getDb().prepare(`UPDATE review_item SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+}
