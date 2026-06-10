@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ReviewQueue from "./ReviewQueue";
 import ScoutView from "./ScoutView";
-import { Badge, Card, NavItem } from "./components";
+import { Card, NavItem } from "./components";
 import { BookMarked, Inbox, Radar } from "./icons";
 
 type Screen = "review" | "scout" | "kb";
@@ -22,25 +22,29 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState(0);
 
   return (
-    <div className="flex h-screen flex-col bg-[var(--surface-page)]">
-      <header className="flex h-[66px] shrink-0 items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-card)] px-5">
-        <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-[var(--radius-md)] bg-[var(--surface-ink)] font-[var(--font-serif)] text-[20px] font-[var(--fw-black)] leading-none text-[var(--text-inverse)]">a</div>
+    <div className="flex h-screen bg-[var(--surface-page)]">
+      <aside className="flex w-[248px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 pt-[18px] pb-5">
+        <header className="mb-[22px] flex items-center gap-[10px] px-0.5">
+          <img className="h-[30px] w-[30px] shrink-0" src="/logo-mark.svg" alt="" />
           <div>
-            <h1 className="[font:var(--fw-bold)_17px/1.15_var(--font-sans)] text-[var(--text-strong)]">agent-mkt</h1>
-            <p className="mt-1 font-[var(--font-mono)] text-[11px] leading-none text-[var(--text-muted)]">HouseGuide.ai</p>
+            <h1 className="[font:var(--fw-bold)_15px/1.1_var(--font-sans)] text-[var(--text-strong)]">Agent MKT</h1>
+            <p className="mt-0.5 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)]">HouseGuide.ai</p>
           </div>
-        </div>
-        <Badge tone="brand" solid>{pendingCount}</Badge>
-      </header>
+        </header>
 
-      <nav className="flex shrink-0 gap-2 border-b border-[var(--border-subtle)] bg-[var(--surface-card)] p-3" aria-label="主要功能">
-        <NavItem icon={<Radar />} label="海巡" active={screen === "scout"} onClick={() => setScreen("scout")} />
-        <NavItem icon={<Inbox />} label="審核佇列" count={pendingCount} active={screen === "review"} onClick={() => setScreen("review")} />
-        <NavItem icon={<BookMarked />} label="知識庫" active={screen === "kb"} onClick={() => setScreen("kb")} />
-      </nav>
+        <nav className="flex flex-col gap-0.5" aria-label="主要功能">
+          <NavItem icon={<Radar />} label="海巡" active={screen === "scout"} onClick={() => setScreen("scout")} />
+          <NavItem icon={<Inbox />} label="審核佇列" count={pendingCount} active={screen === "review"} onClick={() => setScreen("review")} />
+          <NavItem icon={<BookMarked />} label="知識庫" active={screen === "kb"} onClick={() => setScreen("kb")} />
+        </nav>
 
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <footer className="mt-auto border-t border-[var(--border-subtle)] px-1 pt-[14px] font-[var(--font-mono)] text-[11px] leading-normal text-[var(--text-faint)]">
+          <div>v0.1.0 · PoC</div>
+          <div className="mt-0.5">非商業用途</div>
+        </footer>
+      </aside>
+
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {screen === "review" ? <ReviewQueue onCountChange={setPendingCount} /> : null}
         {screen === "scout" ? <ScoutView onScoutComplete={() => setScreen("review")} /> : null}
         {screen === "kb" ? <Placeholder title="知識庫" /> : null}

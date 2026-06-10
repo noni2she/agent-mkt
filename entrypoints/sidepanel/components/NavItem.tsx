@@ -16,7 +16,7 @@ export function NavItem({ icon, label, active = false, count, className = "", ..
       {...props}
     >
       <span className={`inline-flex h-[18px] w-[18px] ${active ? "text-[var(--brand)]" : "text-[var(--text-muted)]"} [&>svg]:h-full [&>svg]:w-full`}>{icon}</span>
-      <span className="flex-1">{label}</span>
+      <span className="flex-1 whitespace-nowrap">{label}</span>
       {count != null ? <Badge tone={active ? "brand" : "neutral"} solid={active}>{count}</Badge> : null}
     </button>
   );
