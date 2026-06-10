@@ -51,13 +51,14 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     setError(null);
     try {
       const data = await fetchReviews();
-      setItems(data);
+      const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0);
+      setItems(reviewable);
       setDrafts((prev) => {
         const next: Record<string, string> = {};
-        for (const item of data) next[item.id] = prev[item.id] ?? item.draft ?? "";
+        for (const item of reviewable) next[item.id] = prev[item.id] ?? item.draft ?? "";
         return next;
       });
-      onCountChange?.(data.length);
+      onCountChange?.(reviewable.length);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {

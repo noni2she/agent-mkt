@@ -14,6 +14,7 @@ export interface ReviewPost {
 export interface ReviewItem {
   id: string;
   post: ReviewPost;
+  relevant?: boolean;
   reason: string;
   draft: string;
   status: string;

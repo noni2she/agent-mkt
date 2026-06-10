@@ -82,6 +82,7 @@ export interface ReviewItemRow {
 }
 
 export function saveReviewItem(row: ReviewItemRow): void {
+  if (row.relevant !== 1 || !row.draft.trim()) return;
   getDb()
     .prepare(
       `INSERT OR REPLACE INTO review_item
@@ -113,6 +114,7 @@ export function getProcessedIds(tenant: string): string[] {
 export interface ReviewListItem {
   id: string;
   post: unknown; // ScoutCandidate（由 post_json 解析）
+  relevant: boolean;
   reason: string;
   draft: string;
   status: string;
@@ -123,15 +125,16 @@ export interface ReviewListItem {
 export function getReviews(tenant: string): ReviewListItem[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, post_json, reason, draft, status, created_at
+      `SELECT id, post_json, relevant, reason, draft, status, created_at
        FROM review_item
-       WHERE tenant_id = ?
+       WHERE tenant_id = ? AND relevant = 1 AND TRIM(COALESCE(draft, '')) != ''
        ORDER BY created_at DESC`,
     )
-    .all(tenant) as Array<{ id: string; post_json: string; reason: string; draft: string; status: string; created_at: string }>;
+    .all(tenant) as Array<{ id: string; post_json: string; relevant: number; reason: string; draft: string; status: string; created_at: string }>;
   return rows.map((r) => ({
     id: r.id,
     post: JSON.parse(r.post_json),
+    relevant: r.relevant === 1,
     reason: r.reason,
     draft: r.draft,
     status: r.status,
