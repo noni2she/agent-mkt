@@ -29,7 +29,7 @@ export function Button({ children, variant = "secondary", size = "md", icon, ico
   return (
     <button
       type="button"
-      className={`inline-flex items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] border transition-[background,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:cursor-not-allowed disabled:opacity-45 ${full ? "w-full" : "w-auto"} ${s.button} ${variants[variant]} ${className}`}
+      className={`inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-[var(--radius-md)] border transition-[background,border-color] duration-[var(--dur-fast)] ease-[var(--ease-out)] disabled:cursor-not-allowed disabled:opacity-45 ${full ? "w-full" : "w-auto"} ${s.button} ${variants[variant]} ${className}`}
       {...props}
     >
       {icon ? <span className={`inline-flex [&>svg]:h-full [&>svg]:w-full ${s.icon}`}>{icon}</span> : null}
