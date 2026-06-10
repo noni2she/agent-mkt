@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchReviews, updateReview, type ReviewItem } from "./api";
 import { AlertBar, Avatar, Button, Card, MetricChip, StatusChip, TextArea } from "./components";
-import { Check, Clock, Inbox, Lightbulb, RefreshCw, X } from "./icons";
+import { Check, Inbox, Lightbulb, RefreshCw, X } from "./icons";
 
 interface ReviewQueueProps {
   onCountChange?: (count: number) => void;
@@ -116,12 +116,6 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     }
   }, [advanceAfterRemoval, current, edited, showToast]);
 
-  const later = useCallback(() => {
-    if (!items.length) return;
-    setIdx((n) => (n + 1) % items.length);
-    showToast("稍後再看");
-  }, [items.length, showToast]);
-
   const saveDraft = useCallback(() => {
     if (!current || edited === current.draft) return;
     void updateReview(current.id, { draft: edited }).catch(() => {});
@@ -220,7 +214,6 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
 
         <div className="flex flex-wrap items-center justify-end gap-[10px]">
           <Button variant="ghost" icon={<X />} disabled={busy} onClick={() => void skip()}>跳過</Button>
-          <Button variant="secondary" icon={<Clock />} disabled={busy || items.length < 2} onClick={later}>稍後再看</Button>
           <Button variant="primary" icon={<Check />} disabled={busy || draftEmpty} onClick={() => void approve()}>
             通過並送出
           </Button>
