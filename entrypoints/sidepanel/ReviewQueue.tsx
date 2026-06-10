@@ -92,7 +92,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       await updateReview(current.id, { status: "approved", draft: edited });
       setRevCount((n) => n + 1);
       setApprCount((n) => n + 1);
-      showToast("✓ 已排入送出");
+      showToast("已核准，排入發送");
       advanceAfterRemoval(current.id);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
@@ -215,7 +215,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
         <div className="flex flex-wrap items-center justify-end gap-[10px]">
           <Button variant="ghost" icon={<X />} disabled={busy} onClick={() => void skip()}>跳過</Button>
           <Button variant="primary" icon={<Check />} disabled={busy || draftEmpty} onClick={() => void approve()}>
-            通過並送出
+            核准
           </Button>
         </div>
         {overLimit ? <div className="[font:var(--fs-xs)/1.5_var(--font-sans)] text-[var(--danger-text)]">草稿超過 60 字，送出前建議再收斂。</div> : null}
