@@ -5,8 +5,13 @@ export default defineBackground(() => {
   const TENANT = "us";
   const BASE = "http://127.0.0.1:18900";
 
+  type PolledCommand = {
+    id: string;
+    command: { action: string; keyword?: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown };
+  };
+
   async function pollOnce() {
-    let cmds: Array<{ id: string; command: { action: string; keyword?: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown } }>;
+    let cmds: PolledCommand[];
     try {
       const r = await fetch(`${BASE}/poll?tenant=${TENANT}`);
       cmds = await r.json();
@@ -19,6 +24,8 @@ export default defineBackground(() => {
       if (command.action === "ping") {
         console.log("[hands] 收到 ping → 回 pong", id);
         await postResult({ type: "response", id, status: "ok", payload: "pong" });
+      } else if (command.action === "scout_stop") {
+        await handleScoutStop(id);
       } else if (command.action === "scout") {
         await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown });
       }
@@ -91,6 +98,22 @@ export default defineBackground(() => {
     } catch (e) {
       await postResult({ type: "response", id, status: "fail", error: String(e) });
     }
+  }
+
+  async function handleScoutStop(id: string) {
+    const tabs = await chrome.tabs.query({
+      url: ["https://www.threads.com/*", "https://www.threads.net/*"],
+    });
+    const tabId = tabs[0]?.id;
+    if (tabId) {
+      try {
+        await chrome.tabs.sendMessage(tabId, { type: "scout_stop" });
+        console.log("[hands] scout: 已送出中止訊號");
+      } catch (e) {
+        console.log("[hands] scout: 中止訊號送出失敗", (e as Error).message);
+      }
+    }
+    await postResult({ type: "response", id, status: "ok", payload: "stopped" });
   }
 
   /** 導頁並等該分頁 load 完成，再多等一下讓 content script 注入 + Threads 動態內容載入。 */

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchConfig, runScout, saveConfig, type TenantConfig } from "./api";
+import { fetchConfig, fetchScoutStatus, runScout, saveConfig, stopScout, type TenantConfig } from "./api";
 import { AlertBar, Badge, Button, Card } from "./components";
 import { Radar, RefreshCw, X } from "./icons";
 
@@ -38,6 +38,7 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
   const [excludeInput, setExcludeInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -101,15 +102,48 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
     try {
       await persist();
       await runScout(config.keywords[0]);
-      window.setTimeout(() => {
-        setRunning(false);
-        onScoutComplete?.();
-      }, 2000);
     } catch (e) {
       setRunning(false);
       setError(e instanceof Error ? e.message : String(e));
     }
-  }, [config.keywords, onScoutComplete, persist]);
+  }, [config.keywords, persist]);
+
+  useEffect(() => {
+    if (!running) return;
+    let cancelled = false;
+    const checkStatus = async () => {
+      try {
+        const status = await fetchScoutStatus();
+        if (cancelled || status.running) return;
+        setRunning(false);
+        onScoutComplete?.();
+      } catch {
+        // Keep the local stop control available while the backend is briefly unreachable.
+      }
+    };
+    const timer = window.setInterval(() => {
+      void checkStatus();
+    }, 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [onScoutComplete, running]);
+
+  const stopActiveScout = useCallback(async () => {
+    setStopping(true);
+    setError(null);
+    try {
+      await stopScout();
+      setRunning(false);
+      setMessage("海巡已中止");
+      window.setTimeout(() => setMessage(null), 1800);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setStopping(false);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -231,8 +265,15 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
         </Card>
 
         <div className="flex flex-col gap-3">
-          <Button variant="primary" size="lg" full icon={running ? <RefreshCw className="animate-spin" /> : <Radar />} disabled={running || !config.keywords.length} onClick={() => void startScout()}>
-            {running ? "海巡中..." : "執行海巡"}
+          <Button
+            variant={running ? "danger" : "primary"}
+            size="lg"
+            full
+            icon={running ? <X /> : <Radar />}
+            disabled={stopping || (!running && !config.keywords.length)}
+            onClick={() => void (running ? stopActiveScout() : startScout())}
+          >
+            {running ? (stopping ? "中止中..." : "中止海巡") : "執行海巡"}
           </Button>
           <Button variant="secondary" full disabled={saving || !dirty} onClick={() => void persist()}>
             {saving ? "儲存中..." : dirty ? "儲存設定" : "設定已儲存"}

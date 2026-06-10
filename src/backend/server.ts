@@ -41,6 +41,8 @@ export function createPollServer(queue: CommandQueue): Server {
       const cfg = getTenantConfig(tenant);
       const kw = keyword || cfg.keywords[0] || "";
       if (!kw) { res.statusCode = 400; res.end("no keyword"); return; }
+      queue.clearScoutStop(tenant);
+      queue.markScoutActive(tenant);
       // fire-and-forget：背景跑，立刻回 202；UI 之後 poll /reviews
       void scoutAndReview(queue, tenant, {
         keyword: kw,
@@ -48,8 +50,25 @@ export function createPollServer(queue: CommandQueue): Server {
         criteria: { minLikes: cfg.minLikes, maxAgeHours: cfg.maxAgeHours ?? undefined, excludeKeywords: cfg.excludeKeywords },
         budget: {},
         targetRelevant: cfg.targetRelevant,
-      }).catch((e) => console.error("[scout] 失敗:", e));
+      })
+        .catch((e) => console.error("[scout] 失敗:", e))
+        .finally(() => queue.markScoutInactive(tenant));
       res.statusCode = 202; res.end();
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/scout/status") {
+      const tenant = url.searchParams.get("tenant") ?? "us";
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ running: queue.isScoutActive(tenant) }));
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/scout/stop") {
+      const tenant = url.searchParams.get("tenant") ?? "us";
+      queue.requestScoutStop(tenant);
+      res.statusCode = 202;
+      res.end();
       return;
     }
 

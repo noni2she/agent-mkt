@@ -13,6 +13,8 @@ export class CommandQueue {
   private readonly queues = new Map<string, Queued[]>();
   private readonly awaiting = new Map<string, Pending>();
   private readonly lastPoll = new Map<string, number>();
+  private readonly stoppedScouts = new Set<string>();
+  private readonly activeScouts = new Set<string>();
 
   enqueue(tenant: string, command: Command, timeoutMs = 30_000): Promise<ResponseEnvelope> {
     const id = randomUUID();
@@ -26,6 +28,14 @@ export class CommandQueue {
       }, timeoutMs);
       this.awaiting.set(id, { resolve, reject, timer });
     });
+  }
+
+  push(tenant: string, command: Command): string {
+    const id = randomUUID();
+    const q = this.queues.get(tenant) ?? [];
+    q.push({ id, command });
+    this.queues.set(tenant, q);
+    return id;
   }
 
   drain(tenant: string): Queued[] {
@@ -46,5 +56,30 @@ export class CommandQueue {
   isConnected(tenant: string, withinMs = 90_000): boolean {
     const t = this.lastPoll.get(tenant);
     return !!t && Date.now() - t < withinMs;
+  }
+
+  requestScoutStop(tenant: string): void {
+    this.stoppedScouts.add(tenant);
+    this.push(tenant, { action: "scout_stop" });
+  }
+
+  clearScoutStop(tenant: string): void {
+    this.stoppedScouts.delete(tenant);
+  }
+
+  isScoutStopped(tenant: string): boolean {
+    return this.stoppedScouts.has(tenant);
+  }
+
+  markScoutActive(tenant: string): void {
+    this.activeScouts.add(tenant);
+  }
+
+  markScoutInactive(tenant: string): void {
+    this.activeScouts.delete(tenant);
+  }
+
+  isScoutActive(tenant: string): boolean {
+    return this.activeScouts.has(tenant) && !this.isScoutStopped(tenant);
   }
 }

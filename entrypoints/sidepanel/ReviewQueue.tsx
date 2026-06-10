@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { fetchReviews, updateReview, type ReviewItem } from "./api";
-import { AlertBar, Avatar, Button, Card, MetricChip, StatusChip, TextArea } from "./components";
+import { AlertBar, Button, Card, MetricChip, StatusChip, TextArea } from "./components";
 import { Check, Inbox, Lightbulb, RefreshCw, X } from "./icons";
 
 interface ReviewQueueProps {
@@ -20,6 +20,13 @@ function relativeAge(value: string): string {
 
 function safeHandle(handle: string): string {
   return handle?.replace(/^@/, "") || "unknown";
+}
+
+function displayStatus(status: string): "pending" | "approved" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" {
+  if (["pending", "approved", "sent", "skipped", "rejected", "later", "blocked", "relevant"].includes(status)) {
+    return status as "pending" | "approved" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
+  }
+  return "pending";
 }
 
 export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
@@ -76,10 +83,10 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     setEdited(current?.draft ?? "");
   }, [current?.id]);
 
-  const advanceAfterRemoval = useCallback((removedId: string) => {
+  const updateVisibleItem = useCallback((updatedId: string, patch: Partial<ReviewItem>) => {
     setItems((prev) => {
-      const next = prev.filter((item) => item.id !== removedId);
-      setIdx((oldIdx) => (next.length ? Math.min(oldIdx, next.length - 1) : 0));
+      const next = prev.map((item) => (item.id === updatedId ? { ...item, ...patch } : item));
+      setIdx((oldIdx) => (oldIdx < next.length - 1 ? oldIdx + 1 : oldIdx));
       onCountChange?.(next.length);
       return next;
     });
@@ -93,13 +100,13 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       setRevCount((n) => n + 1);
       setApprCount((n) => n + 1);
       showToast("已核准，排入發送");
-      advanceAfterRemoval(current.id);
+      updateVisibleItem(current.id, { status: "approved", draft: edited });
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [advanceAfterRemoval, current, draftEmpty, edited, showToast]);
+  }, [current, draftEmpty, edited, showToast, updateVisibleItem]);
 
   const skip = useCallback(async () => {
     if (!current) return;
@@ -108,13 +115,13 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       await updateReview(current.id, { status: "skipped", draft: edited });
       setRevCount((n) => n + 1);
       showToast("跳過");
-      advanceAfterRemoval(current.id);
+      updateVisibleItem(current.id, { status: "skipped", draft: edited });
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [advanceAfterRemoval, current, edited, showToast]);
+  }, [current, edited, showToast, updateVisibleItem]);
 
   const saveDraft = useCallback(() => {
     if (!current || edited === current.draft) return;
@@ -149,8 +156,8 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       <div className="grid flex-1 place-items-center p-7 text-center">
         <div>
           <Inbox width={38} height={38} className="mx-auto mb-3 text-[var(--text-faint)]" />
-          <h2 className="[font:var(--text-h2)] text-[var(--text-strong)]">沒有待審項目</h2>
-          <p className="mt-2 max-w-[280px] [font:var(--text-small)] text-[var(--text-muted)]">目前沒有 pending 的相關貼文。跑完海巡後，符合條件的項目會出現在這裡。</p>
+          <h2 className="[font:var(--text-h2)] text-[var(--text-strong)]">沒有審核項目</h2>
+          <p className="mt-2 max-w-[280px] [font:var(--text-small)] text-[var(--text-muted)]">跑完海巡後，符合條件的項目會出現在這裡。</p>
         </div>
       </div>
     );
@@ -167,7 +174,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" icon={<RefreshCw />} disabled={loading} onClick={() => void load({ resetPosition: true })}>重新整理</Button>
-          <StatusChip status="pending" />
+          <StatusChip status={displayStatus(current.status)} />
         </div>
       </div>
 
@@ -178,8 +185,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       ) : null}
 
       <Card elevated className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar handle={handle} size={30} />
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <a className="block truncate [font:var(--fw-bold)_13.5px/1_var(--font-sans)] text-[var(--text-strong)] no-underline hover:underline" href={current.post.url} target="_blank" rel="noreferrer">@{handle}</a>
             <span className="mt-1 block font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-faint)]">{relativeAge(current.post.posted_at)}</span>

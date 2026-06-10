@@ -18,6 +18,11 @@ export default defineContentScript({
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true; // async sendResponse
       }
+      if (msg?.type === "scout_stop") {
+        currentScoutAbort?.abort();
+        sendResponse({ ok: true });
+        return true;
+      }
       return false;
     });
     console.log("[scout] content script ready");
@@ -32,8 +37,24 @@ const SEL = {
 
 /** Threads UI 按鈕文字（非內文），抓取時排除。 */
 const JUNK_LABELS = new Set(["Translate", "翻譯", "查看翻譯", "See translation"]);
+let currentScoutAbort: AbortController | null = null;
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve();
+      return;
+    }
+    const timer = window.setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
 const jitter = (mean: number) => Math.max(300, Math.round(mean * (0.6 + Math.random() * 0.8)));
 
 /** 從動作鈕（Like/Reply…）文字抽數字：「Like10」→10、「讚1.2萬」→12000。aria-label 跨語系皆試。 */
@@ -90,6 +111,10 @@ async function scout(
   b?: Partial<ScoutBudget>,
   excludeIds: string[] = [],
 ): Promise<{ candidates: ScoutCandidate[]; health: { scanned: number; withText: number; withLikeBtn: number } }> {
+  currentScoutAbort?.abort();
+  const abortController = new AbortController();
+  currentScoutAbort = abortController;
+  const { signal } = abortController;
   const targetCandidates = b?.targetCandidates ?? 10;
   const maxScrolls = b?.maxScrolls ?? 30;
   const maxScanned = b?.maxScanned ?? 60;
@@ -104,10 +129,10 @@ async function scout(
   let withText = 0;
   let withLikeBtn = 0;
 
-  while (out.length < targetCandidates && scrolls < maxScrolls && scanned < maxScanned) {
+  while (!signal.aborted && out.length < targetCandidates && scrolls < maxScrolls && scanned < maxScanned) {
     const cards = Array.from(document.querySelectorAll<HTMLElement>(SEL.post));
     for (const card of cards) {
-      if (out.length >= targetCandidates || scanned >= maxScanned) break;
+      if (signal.aborted || out.length >= targetCandidates || scanned >= maxScanned) break;
       const link = card.querySelector<HTMLAnchorElement>('a[href*="/post/"]');
       const href = link?.getAttribute("href") ?? "";
       const id = href.split("/post/")[1]?.split(/[?/]/)[0] ?? "";
@@ -142,13 +167,16 @@ async function scout(
         popular_reason: `👍${likes} ${isFinite(ageHours) ? Math.round(ageHours) + "h" : ""}`.trimEnd(),
       });
     }
+    if (signal.aborted) break;
     window.scrollBy(0, 700 + Math.floor(Math.random() * 400));
-    await sleep(jitter(1500));
+    await sleep(jitter(1500), signal);
     scrolls += 1;
   }
   const stale = scanned > 0 && (withText === 0 || withLikeBtn === 0);
   console.log(`[scout] 套用條件 minLikes=${minLikes} maxAgeHours=${maxAgeHours ?? "∞"} exclude=[${excludeKeywords.join(", ")}]`);
   console.log(`[scout] keyword="${keyword}" scanned=${scanned} scrolls=${scrolls} candidates=${out.length} withText=${withText} withLikeBtn=${withLikeBtn}`);
+  if (signal.aborted) console.log("[scout] 已中止");
   if (stale) console.warn(`[scout] ⚠️ 選擇器疑似失效：掃了 ${scanned} 張卡但 withText=${withText} withLikeBtn=${withLikeBtn}`);
+  if (currentScoutAbort === abortController) currentScoutAbort = null;
   return { candidates: out, health: { scanned, withText, withLikeBtn } };
 }

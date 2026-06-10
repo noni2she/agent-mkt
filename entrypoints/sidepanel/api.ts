@@ -41,6 +41,17 @@ export async function runScout(keyword?: string): Promise<void> {
   await fetch(`${BASE}/scout?tenant=${TENANT}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keyword }) });
 }
 
+export async function stopScout(): Promise<void> {
+  const r = await fetch(`${BASE}/scout/stop?tenant=${TENANT}`, { method: "POST" });
+  if (!r.ok) throw new Error(`stop scout failed: ${r.status}`);
+}
+
+export async function fetchScoutStatus(): Promise<{ running: boolean }> {
+  const r = await fetch(`${BASE}/scout/status?tenant=${TENANT}`);
+  if (!r.ok) throw new Error(`fetch scout status failed: ${r.status}`);
+  return r.json() as Promise<{ running: boolean }>;
+}
+
 export async function fetchReviews(): Promise<ReviewItem[]> {
   const r = await fetch(`${BASE}/reviews?tenant=${TENANT}`);
   if (!r.ok) throw new Error(`fetch reviews failed: ${r.status}`);

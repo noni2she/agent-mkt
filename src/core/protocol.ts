@@ -19,6 +19,7 @@ export type ScoutBudget = z.infer<typeof ScoutBudgetSchema>;
 /** 後端 → hands 的指令。 */
 export const CommandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("ping") }),
+  z.object({ action: z.literal("scout_stop") }),
   z.object({
     action: z.literal("scout"),
     keyword: z.string(),

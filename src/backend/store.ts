@@ -119,13 +119,13 @@ export interface ReviewListItem {
   created_at: string;
 }
 
-/** 取某租戶「相關且 pending」的審核項目，新到舊。 */
+/** 取某租戶所有審核項目，新到舊。 */
 export function getReviews(tenant: string): ReviewListItem[] {
   const rows = getDb()
     .prepare(
       `SELECT id, post_json, reason, draft, status, created_at
        FROM review_item
-       WHERE tenant_id = ? AND relevant = 1 AND status = 'pending'
+       WHERE tenant_id = ?
        ORDER BY created_at DESC`,
     )
     .all(tenant) as Array<{ id: string; post_json: string; reason: string; draft: string; status: string; created_at: string }>;

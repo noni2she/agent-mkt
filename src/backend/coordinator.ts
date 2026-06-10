@@ -19,6 +19,10 @@ export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: 
   let totalRelevant = 0;
 
   for (let round = 1; round <= maxRounds; round++) {
+    if (queue.isScoutStopped(tenant)) {
+      console.log("[refill] 海巡已中止，停止補量");
+      break;
+    }
     const excludeIds = fresh ? [] : getProcessedIds(tenant);
     const remaining = opts.targetRelevant - totalRelevant; // 本輪只撈缺額，省 LLM 呼叫
     const roundBudget = { ...opts.budget, targetCandidates: Math.max(remaining, 1) };
@@ -35,6 +39,10 @@ export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: 
       },
       60_000,
     );
+    if (queue.isScoutStopped(tenant)) {
+      console.log("[refill] 海巡已中止，略過本輪審核");
+      break;
+    }
     if (res.status === "element_not_found") {
       console.warn(`[refill] ⚠️ 選擇器疑似失效：${res.error}，停止`);
       break;
