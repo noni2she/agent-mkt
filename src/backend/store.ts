@@ -28,8 +28,44 @@ export function getDb(): Database.Database {
       scouted_at TEXT NOT NULL,
       PRIMARY KEY (tenant_id, post_id)
     );
+    CREATE TABLE IF NOT EXISTS tenant_config (
+      tenant_id TEXT PRIMARY KEY,
+      config_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
   `);
   return db;
+}
+
+export interface TenantConfig {
+  keywords: string[];
+  minLikes: number;
+  maxAgeHours: number | null;
+  targetRelevant: number;
+  excludeKeywords: string[];
+  serpType: "default" | "recent";
+}
+
+const DEFAULT_CONFIG: TenantConfig = {
+  keywords: ["房地產"],
+  minLikes: 100,
+  maxAgeHours: 720,
+  targetRelevant: 3,
+  excludeKeywords: [],
+  serpType: "default",
+};
+
+export function getTenantConfig(tenant: string): TenantConfig {
+  const row = getDb().prepare(`SELECT config_json FROM tenant_config WHERE tenant_id = ?`).get(tenant) as
+    | { config_json: string }
+    | undefined;
+  return row ? { ...DEFAULT_CONFIG, ...JSON.parse(row.config_json) } : DEFAULT_CONFIG;
+}
+
+export function setTenantConfig(tenant: string, config: TenantConfig): void {
+  getDb()
+    .prepare(`INSERT OR REPLACE INTO tenant_config (tenant_id, config_json, updated_at) VALUES (?, ?, ?)`)
+    .run(tenant, JSON.stringify(config), new Date().toISOString());
 }
 
 export interface ReviewItemRow {
