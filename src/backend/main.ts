@@ -1,23 +1,27 @@
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
 import { createPollServer } from "./server.js";
+import { getTenantConfig, type TenantConfig } from "./store.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
-/** 取某租戶的海巡 criteria。現在用 env/預設；Plan 4 改為從 tenant_config store 讀。 */
-function criteriaFor(_tenant: string) {
+/** 取某租戶的海巡 criteria。以 tenant_config 為基底，DEV_* env 可覆寫。 */
+function criteriaFor(config: TenantConfig) {
   return {
-    minLikes: Number(process.env.DEV_MIN_LIKES ?? 100),
-    excludeKeywords: (process.env.DEV_EXCLUDE ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
-    maxAgeHours: process.env.DEV_MAX_AGE_HOURS ? Number(process.env.DEV_MAX_AGE_HOURS) : undefined,
+    minLikes: process.env.DEV_MIN_LIKES ? Number(process.env.DEV_MIN_LIKES) : config.minLikes,
+    excludeKeywords: process.env.DEV_EXCLUDE
+      ? process.env.DEV_EXCLUDE.split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : config.excludeKeywords,
+    maxAgeHours: process.env.DEV_MAX_AGE_HOURS
+      ? Number(process.env.DEV_MAX_AGE_HOURS)
+      : config.maxAgeHours ?? undefined,
   };
 }
 
-/** 取某租戶的海巡 budget（先到先停上限）。現在用 env/預設；Plan 4 改從 tenant_config store 讀。 */
-function budgetFor(_tenant: string) {
+/** 取某租戶的海巡 budget（先到先停上限）。DEV_* env 可覆寫。 */
+function budgetFor() {
   return {
     targetCandidates: Number(process.env.DEV_TARGET ?? 10),
     maxScrolls: Number(process.env.DEV_MAX_SCROLLS ?? 30),
@@ -44,14 +48,15 @@ server.listen(PORT, () => {
   }
 
   if (process.env.DEV_SCOUT) {
-    const keyword = process.env.DEV_SCOUT;
+    const config = getTenantConfig("us");
+    const keyword = process.env.DEV_SCOUT || config.keywords[0] || "";
     console.log(`[dev] DEV_SCOUT：10s 後對 tenant 'us' 下 scout("${keyword}")`);
     setTimeout(async () => {
       try {
-        const criteria = criteriaFor("us");
-        const budget = budgetFor("us");
-        const serpType = process.env.DEV_SERP === "recent" ? "recent" : "default";
-        const targetRelevant = Number(process.env.DEV_TARGET_RELEVANT ?? 3);
+        const criteria = criteriaFor(config);
+        const budget = budgetFor();
+        const serpType = process.env.DEV_SERP === "recent" ? "recent" : config.serpType;
+        const targetRelevant = process.env.DEV_TARGET_RELEVANT ? Number(process.env.DEV_TARGET_RELEVANT) : config.targetRelevant;
         console.log(`[dev] scout serp=${serpType} minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} 目標相關=${targetRelevant}`);
         await scoutAndReview(queue, "us", { keyword, serpType, criteria, budget, targetRelevant });
       } catch (e) {
