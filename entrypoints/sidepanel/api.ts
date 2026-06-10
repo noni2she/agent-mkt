@@ -20,6 +20,27 @@ export interface ReviewItem {
   created_at: string;
 }
 
+export interface TenantConfig {
+  keywords: string[];
+  minLikes: number;
+  maxAgeHours: number | null;
+  targetRelevant: number;
+  excludeKeywords: string[];
+  serpType: "default" | "recent";
+}
+
+export async function fetchConfig(): Promise<TenantConfig> {
+  return (await fetch(`${BASE}/config?tenant=${TENANT}`)).json();
+}
+
+export async function saveConfig(c: TenantConfig): Promise<void> {
+  await fetch(`${BASE}/config?tenant=${TENANT}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c) });
+}
+
+export async function runScout(keyword?: string): Promise<void> {
+  await fetch(`${BASE}/scout?tenant=${TENANT}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keyword }) });
+}
+
 export async function fetchReviews(): Promise<ReviewItem[]> {
   const r = await fetch(`${BASE}/reviews?tenant=${TENANT}`);
   if (!r.ok) throw new Error(`fetch reviews failed: ${r.status}`);

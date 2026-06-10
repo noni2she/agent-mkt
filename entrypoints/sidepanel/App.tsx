@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ReviewQueue from "./ReviewQueue";
+import ScoutView from "./ScoutView";
 import { Badge, Card, NavItem } from "./components";
 import { BookMarked, Inbox, Radar } from "./icons";
 
@@ -17,7 +18,7 @@ function Placeholder({ title }: { title: string }) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("review");
+  const [screen, setScreen] = useState<Screen>("scout");
   const [pendingCount, setPendingCount] = useState(0);
 
   return (
@@ -41,7 +42,7 @@ export default function App() {
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {screen === "review" ? <ReviewQueue onCountChange={setPendingCount} /> : null}
-        {screen === "scout" ? <Placeholder title="海巡" /> : null}
+        {screen === "scout" ? <ScoutView onScoutComplete={() => setScreen("review")} /> : null}
         {screen === "kb" ? <Placeholder title="知識庫" /> : null}
       </main>
     </div>
