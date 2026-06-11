@@ -1,5 +1,7 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
+import type { AgentDef } from "../core/prompt.js";
+import { loadAgentDefFromFiles } from "./agentDef.js";
 
 let db: Database.Database | null = null;
 
@@ -31,6 +33,14 @@ export function getDb(): Database.Database {
     CREATE TABLE IF NOT EXISTS tenant_config (
       tenant_id TEXT PRIMARY KEY,
       config_json TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS agent_def (
+      tenant_id TEXT PRIMARY KEY,
+      persona TEXT NOT NULL,
+      owned_product TEXT NOT NULL,
+      marketing_strategy TEXT NOT NULL,
+      content_writing_rule TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
   `);
@@ -66,6 +76,38 @@ export function setTenantConfig(tenant: string, config: TenantConfig): void {
   getDb()
     .prepare(`INSERT OR REPLACE INTO tenant_config (tenant_id, config_json, updated_at) VALUES (?, ?, ?)`)
     .run(tenant, JSON.stringify(config), new Date().toISOString());
+}
+
+/** 取某租戶的 agent 定義。DB 無資料時用 configs/agent/*.md seed 後回傳。 */
+export function getAgentDef(tenant: string): AgentDef {
+  const d = getDb();
+  const row = d
+    .prepare(`SELECT persona, owned_product, marketing_strategy, content_writing_rule FROM agent_def WHERE tenant_id = ?`)
+    .get(tenant) as
+    | { persona: string; owned_product: string; marketing_strategy: string; content_writing_rule: string }
+    | undefined;
+  if (row) {
+    return {
+      persona: row.persona,
+      ownedProduct: row.owned_product,
+      marketingStrategy: row.marketing_strategy,
+      contentWritingRule: row.content_writing_rule,
+    };
+  }
+  const seed = loadAgentDefFromFiles();
+  setAgentDef(tenant, seed);
+  return seed;
+}
+
+/** 寫入某租戶的 agent 定義。 */
+export function setAgentDef(tenant: string, def: AgentDef): void {
+  getDb()
+    .prepare(
+      `INSERT OR REPLACE INTO agent_def
+       (tenant_id, persona, owned_product, marketing_strategy, content_writing_rule, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run(tenant, def.persona, def.ownedProduct, def.marketingStrategy, def.contentWritingRule, new Date().toISOString());
 }
 
 export interface ReviewItemRow {

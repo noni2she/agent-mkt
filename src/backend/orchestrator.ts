@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ScoutCandidate } from "../core/protocol.js";
-import { loadAgentDef } from "./agentDef.js";
 import { reviewCandidate } from "./reviewer.js";
-import { saveReviewItem } from "./store.js";
+import { getAgentDef, saveReviewItem } from "./store.js";
 
 export interface ReviewRecord {
   id: string;
@@ -17,7 +16,7 @@ export interface ReviewRecord {
 
 /** 對一批 scout 候選跑 LLM 判斷+草稿，存 SQLite，回傳相關的。 */
 export async function runReview(candidates: ScoutCandidate[], keyword: string, tenant: string): Promise<ReviewRecord[]> {
-  const def = loadAgentDef();
+  const def = getAgentDef(tenant);
   const records: ReviewRecord[] = [];
   for (const c of candidates) {
     console.log(`  ▸ @${c.author_handle} 👍${c.likes}：${c.text.slice(0, 70).replace(/\n/g, " ")}…`);
