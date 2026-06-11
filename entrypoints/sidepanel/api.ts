@@ -37,6 +37,12 @@ export interface AgentDef {
   contentWritingRule: string;
 }
 
+export interface TenantInfo {
+  brandName: string;
+  threadsHandle: string;
+  onboarded: boolean;
+}
+
 export async function fetchConfig(): Promise<TenantConfig> {
   return (await fetch(`${BASE}/config?tenant=${TENANT}`)).json();
 }
@@ -58,6 +64,21 @@ export async function saveAgentDef(def: AgentDef): Promise<void> {
     body: JSON.stringify(def),
   });
   if (!r.ok) throw new Error(`save agent-def failed: ${r.status}`);
+}
+
+export async function fetchTenant(): Promise<TenantInfo> {
+  const r = await fetch(`${BASE}/tenant?tenant=${TENANT}`);
+  if (!r.ok) throw new Error(`fetch tenant failed: ${r.status}`);
+  return r.json() as Promise<TenantInfo>;
+}
+
+export async function onboardTenant(input: { brandName: string; threadsHandle: string; ownedProduct: string }): Promise<void> {
+  const r = await fetch(`${BASE}/tenant/onboard?tenant=${TENANT}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) throw new Error((await r.text()) || `onboard failed: ${r.status}`);
 }
 
 export async function runScout(keyword?: string): Promise<void> {
