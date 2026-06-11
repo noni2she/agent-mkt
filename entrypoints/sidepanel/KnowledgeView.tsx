@@ -5,11 +5,11 @@ import { RefreshCw } from "./icons";
 
 const EMPTY_DEF: AgentDef = { persona: "", ownedProduct: "", marketingStrategy: "", contentWritingRule: "" };
 
-const FIELDS: { key: keyof AgentDef; label: string; hint: string }[] = [
-  { key: "persona", label: "人設 Persona", hint: "小編是誰、語氣、立場" },
-  { key: "ownedProduct", label: "自家產品 Owned Product", hint: "要行銷的產品/服務與賣點" },
-  { key: "marketingStrategy", label: "行銷策略 Marketing Strategy", hint: "切入角度、目標受眾、訴求" },
-  { key: "contentWritingRule", label: "寫稿規範 Content Writing Rule", hint: "hard / soft rules、用字與長度限制" },
+const FIELDS: { key: keyof AgentDef; label: string; hint: string; placeholder: string }[] = [
+  { key: "persona", label: "人設 Persona", hint: "小編是誰、語氣、立場", placeholder: "描述小編的身份與語氣。可用 Markdown（## 標題、- 列點、**粗體**）。" },
+  { key: "ownedProduct", label: "自家產品 Owned Product", hint: "要行銷的產品/服務與賣點", placeholder: "你是做什麼的、核心產品/服務、價值、受眾、關心的主題。可用 Markdown。" },
+  { key: "marketingStrategy", label: "行銷策略 Marketing Strategy", hint: "切入角度、目標受眾、訴求", placeholder: "切入角度、目標受眾、主要訴求。可用 Markdown。" },
+  { key: "contentWritingRule", label: "寫稿規範 Content Writing Rule", hint: "hard / soft rules、用字與長度限制", placeholder: "Hard / Soft Rules、用字與長度限制。可用 Markdown（建議用 ## 分段）。" },
 ];
 
 function defKey(def: AgentDef): string {
@@ -86,6 +86,7 @@ export default function KnowledgeView() {
               label={f.label}
               value={def[f.key]}
               className="min-h-[140px]"
+              placeholder={f.placeholder}
               onChange={(e) => setDef((prev) => ({ ...prev, [f.key]: e.target.value }))}
             />
             <span className="[font:var(--fs-xs)/1.4_var(--font-sans)] text-[var(--text-faint)]">{f.hint}</span>
