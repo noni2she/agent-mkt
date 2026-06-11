@@ -30,12 +30,34 @@ export interface TenantConfig {
   serpType: "default" | "recent";
 }
 
+export interface AgentDef {
+  persona: string;
+  ownedProduct: string;
+  marketingStrategy: string;
+  contentWritingRule: string;
+}
+
 export async function fetchConfig(): Promise<TenantConfig> {
   return (await fetch(`${BASE}/config?tenant=${TENANT}`)).json();
 }
 
 export async function saveConfig(c: TenantConfig): Promise<void> {
   await fetch(`${BASE}/config?tenant=${TENANT}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c) });
+}
+
+export async function fetchAgentDef(): Promise<AgentDef> {
+  const r = await fetch(`${BASE}/agent-def?tenant=${TENANT}`);
+  if (!r.ok) throw new Error(`fetch agent-def failed: ${r.status}`);
+  return r.json() as Promise<AgentDef>;
+}
+
+export async function saveAgentDef(def: AgentDef): Promise<void> {
+  const r = await fetch(`${BASE}/agent-def?tenant=${TENANT}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(def),
+  });
+  if (!r.ok) throw new Error(`save agent-def failed: ${r.status}`);
 }
 
 export async function runScout(keyword?: string): Promise<void> {

@@ -1,21 +1,11 @@
 import { useState } from "react";
+import KnowledgeView from "./KnowledgeView";
 import ReviewQueue from "./ReviewQueue";
 import ScoutView from "./ScoutView";
-import { Card, NavItem } from "./components";
+import { NavItem } from "./components";
 import { BookMarked, Inbox, Radar } from "./icons";
 
 type Screen = "review" | "scout" | "kb";
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="grid flex-1 place-items-center p-6">
-      <Card pad={18}>
-        <h2 className="[font:var(--text-h2)] text-[var(--text-strong)]">{title}</h2>
-        <p className="mt-2 [font:var(--text-small)] text-[var(--text-muted)]">即將推出</p>
-      </Card>
-    </div>
-  );
-}
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("scout");
@@ -40,7 +30,7 @@ export default function App() {
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {screen === "review" ? <ReviewQueue onCountChange={setPendingCount} /> : null}
         {screen === "scout" ? <ScoutView onScoutComplete={() => setScreen("review")} /> : null}
-        {screen === "kb" ? <Placeholder title="知識庫" /> : null}
+        {screen === "kb" ? <KnowledgeView /> : null}
       </main>
     </div>
   );
