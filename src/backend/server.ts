@@ -2,7 +2,7 @@ import { createServer, type Server } from "node:http";
 import { ResponseEnvelopeSchema } from "../core/protocol.js";
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
-import { getAgentDef, getReviews, getTenantConfig, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
+import { getAgentDef, getReviews, getTenant, getTenantConfig, onboardTenant, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
 
 /** 建立 polling HTTP server：GET /poll?tenant=us、POST /result。 */
 export function createPollServer(queue: CommandQueue): Server {
@@ -48,6 +48,25 @@ export function createPollServer(queue: CommandQueue): Server {
         res.statusCode = 204; res.end();
       } catch {
         res.statusCode = 400; res.end("bad agent-def");
+      }
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/tenant") {
+      const tenant = url.searchParams.get("tenant") ?? "";
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(getTenant(tenant)));
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/tenant/onboard") {
+      let body = ""; for await (const c of req) body += c;
+      try {
+        const tenant = url.searchParams.get("tenant") ?? "us";
+        onboardTenant(tenant, JSON.parse(body));
+        res.statusCode = 204; res.end();
+      } catch (e) {
+        res.statusCode = 400; res.end(e instanceof Error ? e.message : "bad onboard");
       }
       return;
     }

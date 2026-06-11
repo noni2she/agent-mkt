@@ -43,6 +43,13 @@ export function getDb(): Database.Database {
       content_writing_rule TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS tenant (
+      tenant_id TEXT PRIMARY KEY,
+      brand_name TEXT NOT NULL,
+      threads_handle TEXT NOT NULL,
+      onboarded_at TEXT,
+      created_at TEXT NOT NULL
+    );
   `);
   return db;
 }
@@ -108,6 +115,43 @@ export function setAgentDef(tenant: string, def: AgentDef): void {
        VALUES (?, ?, ?, ?, ?, ?)`,
     )
     .run(tenant, def.persona, def.ownedProduct, def.marketingStrategy, def.contentWritingRule, new Date().toISOString());
+}
+
+export interface TenantInfo {
+  brandName: string;
+  threadsHandle: string;
+  onboarded: boolean;
+}
+
+/** 取租戶身分。無 row 視為尚未 onboarded。 */
+export function getTenant(tenant: string): TenantInfo {
+  const row = getDb()
+    .prepare(`SELECT brand_name, threads_handle, onboarded_at FROM tenant WHERE tenant_id = ?`)
+    .get(tenant) as { brand_name: string; threads_handle: string; onboarded_at: string | null } | undefined;
+  if (!row) return { brandName: "", threadsHandle: "", onboarded: false };
+  return { brandName: row.brand_name, threadsHandle: row.threads_handle, onboarded: row.onboarded_at != null };
+}
+
+export interface OnboardInput {
+  brandName: string;
+  threadsHandle: string;
+  ownedProduct: string;
+}
+
+/** 完成 onboarding：驗證必填 → 寫 tenant 身分 → 用預設 + 使用者 owned_product 建 agent_def。 */
+export function onboardTenant(tenant: string, input: OnboardInput): void {
+  if (!input.brandName.trim() || !input.threadsHandle.trim() || !input.ownedProduct.trim()) {
+    throw new Error("brandName, threadsHandle, ownedProduct are required");
+  }
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT OR REPLACE INTO tenant (tenant_id, brand_name, threads_handle, onboarded_at, created_at)
+       VALUES (?, ?, ?, ?, COALESCE((SELECT created_at FROM tenant WHERE tenant_id = ?), ?))`,
+    )
+    .run(tenant, input.brandName.trim(), input.threadsHandle.trim(), now, tenant, now);
+  const defaults = loadAgentDefFromFiles();
+  setAgentDef(tenant, { ...defaults, ownedProduct: input.ownedProduct.trim() });
 }
 
 export interface ReviewItemRow {
