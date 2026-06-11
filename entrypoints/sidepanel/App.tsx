@@ -5,7 +5,7 @@ import ScoutView from "./ScoutView";
 import SetupWizard from "./SetupWizard";
 import { fetchTenant, type TenantInfo } from "./api";
 import { NavItem } from "./components";
-import { BookMarked, Inbox, Radar, RefreshCw } from "./icons";
+import { BookMarked, Inbox, Moon, Radar, RefreshCw, Sun } from "./icons";
 
 type Screen = "review" | "scout" | "kb";
 
@@ -14,6 +14,17 @@ export default function App() {
   const [pendingCount, setPendingCount] = useState(0);
   const [tenant, setTenant] = useState<TenantInfo | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [dark, setDark] = useState<boolean>(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved) return saved === "dark";
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  }, [dark]);
 
   const loadTenant = useCallback(async () => {
     setLoading(true);
@@ -40,6 +51,14 @@ export default function App() {
           <h1 className="[font:var(--fw-bold)_15px/1.1_var(--font-sans)] text-[var(--text-strong)]">Agent MKT</h1>
           <p className="mt-0.5 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)]">{brandLine}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => setDark((v) => !v)}
+          aria-label={dark ? "切換為日間主題" : "切換為夜間主題"}
+          className="ml-auto inline-grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-[var(--radius-md)] border border-[var(--border-default)] bg-[var(--surface-card)] text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-inset)] hover:text-[var(--text-strong)]"
+        >
+          {dark ? <Sun width={18} height={18} /> : <Moon width={18} height={18} />}
+        </button>
       </header>
 
       {loading ? (
