@@ -85,6 +85,7 @@
   --brand-pressed: var(--brand-900);
   --brand-soft: var(--brand-50);
   --brand-soft-bd: var(--brand-100);
+  --brand-text: var(--brand-700); /* brand 字色（用在 brand-soft 底上）；暗色會提亮 */
   --on-brand: #ffffff;
 
   /* Status — go / success */
@@ -295,6 +296,7 @@ code, kbd, samp {
   --brand-hover: var(--brand-300);
   --brand-soft: color-mix(in srgb, var(--brand-500) 16%, var(--ink-900));
   --brand-soft-bd: color-mix(in srgb, var(--brand-500) 32%, var(--ink-800));
+  --brand-text: var(--brand-300); /* 暗色下 brand 字色提亮，確保在深底可讀 */
 
   /* 語意 chip */
   --success: var(--brand-500);

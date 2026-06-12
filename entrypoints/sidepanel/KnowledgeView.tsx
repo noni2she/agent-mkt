@@ -86,6 +86,7 @@ export default function KnowledgeView() {
               label={f.label}
               value={def[f.key]}
               className="min-h-[140px]"
+              dense
               placeholder={f.placeholder}
               onChange={(e) => setDef((prev) => ({ ...prev, [f.key]: e.target.value }))}
             />

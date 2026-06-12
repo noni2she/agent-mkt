@@ -9,7 +9,7 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const tones: Record<Tone, { soft: string; border: string; text: string; solid: string }> = {
   neutral: { soft: "bg-[var(--surface-inset)]", border: "border-[var(--border-default)]", text: "text-[var(--text-muted)]", solid: "bg-[var(--ink-700)]" },
-  brand: { soft: "bg-[var(--brand-soft)]", border: "border-[var(--brand-soft-bd)]", text: "text-[var(--brand-700)]", solid: "bg-[var(--brand)]" },
+  brand: { soft: "bg-[var(--brand-soft)]", border: "border-[var(--brand-soft-bd)]", text: "text-[var(--brand-text)]", solid: "bg-[var(--brand)]" },
   success: { soft: "bg-[var(--success-soft)]", border: "border-[var(--success-bd)]", text: "text-[var(--success-text)]", solid: "bg-[var(--success)]" },
   warning: { soft: "bg-[var(--warning-soft)]", border: "border-[var(--warning-bd)]", text: "text-[var(--warning-text)]", solid: "bg-[var(--warning)]" },
   danger: { soft: "bg-[var(--danger-soft)]", border: "border-[var(--danger-bd)]", text: "text-[var(--danger-text)]", solid: "bg-[var(--danger)]" },

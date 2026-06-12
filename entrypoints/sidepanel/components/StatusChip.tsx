@@ -26,7 +26,7 @@ const labels: Record<Status, string> = {
 
 const tones: Record<string, { chip: string; dot: string }> = {
   neutral: { chip: "border-[var(--border-default)] bg-[var(--surface-inset)] text-[var(--text-muted)]", dot: "bg-[var(--ink-400)]" },
-  brand: { chip: "border-[var(--brand-soft-bd)] bg-[var(--brand-soft)] text-[var(--brand-700)]", dot: "bg-[var(--brand)]" },
+  brand: { chip: "border-[var(--brand-soft-bd)] bg-[var(--brand-soft)] text-[var(--brand-text)]", dot: "bg-[var(--brand)]" },
   success: { chip: "border-[var(--success-bd)] bg-[var(--success-soft)] text-[var(--success-text)]", dot: "bg-[var(--success)]" },
   warning: { chip: "border-[var(--warning-bd)] bg-[var(--warning-soft)] text-[var(--warning-text)]", dot: "bg-[var(--warning)]" },
   danger: { chip: "border-[var(--danger-bd)] bg-[var(--danger-soft)] text-[var(--danger-text)]", dot: "bg-[var(--danger)]" },

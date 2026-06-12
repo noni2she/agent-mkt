@@ -173,7 +173,7 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
                 {keyword}
                 <button
                   type="button"
-                  className="inline-grid h-[16px] w-[16px] cursor-pointer place-items-center rounded-full text-[var(--brand-700)] hover:bg-[var(--brand-soft-bd)] disabled:cursor-not-allowed"
+                  className="inline-grid h-[16px] w-[16px] cursor-pointer place-items-center rounded-full text-[var(--brand-text)] hover:bg-[var(--brand-soft-bd)] disabled:cursor-not-allowed"
                   aria-label={`移除 ${keyword}`}
                   onClick={() => removeKeyword(keyword)}
                   onBlur={() => void persist()}
