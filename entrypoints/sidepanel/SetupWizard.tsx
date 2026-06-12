@@ -40,7 +40,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       <div className="flex max-w-[740px] flex-col gap-4">
         <div>
           <h2 className="[font:var(--fw-bold)_20px/1.2_var(--font-sans)] text-[var(--text-strong)]">設定您的品牌</h2>
-          <p className="mt-1 [font:var(--fs-sm)/1.6_var(--font-sans)] text-[var(--text-muted)]">完成以下設定後即可開始使用。產品說明會成為 AI 判斷與寫稿的核心依據，請務必填寫。</p>
+          <p className="mt-1 [font:var(--fs-sm)/1.6_var(--font-sans)] text-[var(--text-muted)]">Agent MKT 是你的 AI 行銷小編——它會在 Threads 上巡邏熱門貼文、判斷哪些和你的品牌相關，並草擬回覆，發布前都由你審核。開始前，先讓它認識你的品牌。</p>
         </div>
 
         {error ? <AlertBar tone="warning" title="設定失敗">{error}</AlertBar> : null}
@@ -64,7 +64,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             placeholder="你是做什麼的、核心產品/服務、提供什麼價值、目標受眾、關心的主題。可用 Markdown 語法（## 標題、- 列點、**粗體**）。"
             onChange={(e) => setOwnedProduct(e.target.value)}
           />
-          <span className="[font:var(--fs-xs)/1.4_var(--font-sans)] text-[var(--text-faint)]">這段是 AI system prompt 的核心，必填。其餘人設與寫稿規範會先套用預設值，之後可在「知識庫」調整。</span>
+          <span className="[font:var(--fs-xs)/1.4_var(--font-sans)] text-[var(--text-faint)]">這段是小編判斷與寫稿最重要的依據，必填。語氣、寫稿規範等其餘設定會先套用通用預設，之後都能在「知識庫」調整。</span>
         </Card>
 
         <Button variant="primary" size="lg" full className="mb-2" disabled={saving || !valid} onClick={() => void submit()}>
