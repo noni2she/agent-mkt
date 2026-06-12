@@ -32,14 +32,15 @@ function displayStatus(status: string): "pending" | "approved" | "sent" | "skipp
 export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [revCount, setRevCount] = useState(0);
-  const [apprCount, setApprCount] = useState(0);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const fatigue = revCount >= 5 && apprCount / revCount >= 0.95;
+  // 計數從資料推導（不用本地累加，避免漂移）：已審=已決定數、通過=核准數。
+  const reviewedCount = useMemo(() => items.filter((i) => i.status !== "pending").length, [items]);
+  const approvedCount = useMemo(() => items.filter((i) => i.status === "approved").length, [items]);
+  const fatigue = reviewedCount >= 5 && approvedCount / reviewedCount >= 0.95;
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -51,15 +52,15 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     setError(null);
     try {
       const data = await fetchReviews();
-      // 只顯示「待決定（pending）」的項目；已核准/已跳過的不再回到佇列。
-      const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0 && item.status === "pending");
+      // 顯示全部相關項目（含已決定，保留審核紀錄）；徽章只計待審。
+      const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0);
       setItems(reviewable);
       setDrafts((prev) => {
         const next: Record<string, string> = {};
         for (const item of reviewable) next[item.id] = prev[item.id] ?? item.draft ?? "";
         return next;
       });
-      onCountChange?.(reviewable.length);
+      onCountChange?.(reviewable.filter((item) => item.status === "pending").length);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -78,16 +79,12 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  // 決定後（核准/跳過）把該項目從待審列表移除，避免重複點擊與計數累加。
-  const removeItem = useCallback((removedId: string) => {
+  // 決定後（核准/跳過）就地更新狀態並保留在列表（保留審核紀錄）；按鈕會 disable，徽章只計待審。
+  const markDecided = useCallback((decidedId: string, status: string, draft: string) => {
     setItems((prev) => {
-      const next = prev.filter((item) => item.id !== removedId);
-      onCountChange?.(next.length);
+      const next = prev.map((item) => (item.id === decidedId ? { ...item, status, draft } : item));
+      onCountChange?.(next.filter((item) => item.status === "pending").length);
       return next;
-    });
-    setDrafts((prev) => {
-      const { [removedId]: _omit, ...rest } = prev;
-      return rest;
     });
   }, [onCountChange]);
 
@@ -97,31 +94,28 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     setBusy(true);
     try {
       await updateReview(item.id, { status: "approved", draft });
-      setRevCount((n) => n + 1);
-      setApprCount((n) => n + 1);
       showToast("已核准，排入發送");
-      removeItem(item.id);
+      markDecided(item.id, "approved", draft);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [drafts, showToast, removeItem]);
+  }, [drafts, showToast, markDecided]);
 
   const skip = useCallback(async (item: ReviewItem) => {
     const draft = drafts[item.id] ?? item.draft ?? "";
     setBusy(true);
     try {
       await updateReview(item.id, { status: "skipped", draft });
-      setRevCount((n) => n + 1);
       showToast("跳過");
-      removeItem(item.id);
+      markDecided(item.id, "skipped", draft);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [drafts, showToast, removeItem]);
+  }, [drafts, showToast, markDecided]);
 
   const saveDraft = useCallback((item: ReviewItem) => {
     const draft = drafts[item.id] ?? "";
@@ -168,7 +162,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       <div className="flex shrink-0 items-center justify-between gap-4 p-4 pb-3">
         <div>
           <div className="font-[var(--font-mono)] text-[13px] leading-none text-[var(--text-strong)] [font-variant-numeric:tabular-nums]">{progress}</div>
-          <div className="mt-1 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">已審 {revCount} · 通過 {apprCount}</div>
+          <div className="mt-1 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)] [font-variant-numeric:tabular-nums]">已審 {reviewedCount} · 通過 {approvedCount}</div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" icon={<RefreshCw />} disabled={loading} onClick={() => void load({ resetPosition: true })}>重新整理</Button>
@@ -188,9 +182,10 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
             const draft = drafts[item.id] ?? item.draft ?? "";
             const draftEmpty = draft.trim().length === 0;
             const overLimit = draft.length > 60;
+            const decided = item.status !== "pending";
 
             return (
-              <Card key={item.id} elevated className="flex flex-col gap-4">
+              <Card key={item.id} elevated className={`flex flex-col gap-4 ${decided ? "opacity-60" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <a className="block truncate [font:var(--fw-bold)_13.5px/1_var(--font-sans)] text-[var(--text-strong)] no-underline hover:underline" href={item.post.url} target="_blank" rel="noreferrer">@{handle}</a>
@@ -212,6 +207,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                   maxHint={60}
                   rows={5}
                   value={draft}
+                  disabled={decided}
                   onChange={(e) => setDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))}
                   onBlur={() => saveDraft(item)}
                   placeholder="輸入要送出的回覆..."
@@ -226,8 +222,8 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-[10px]">
-                  <Button variant="ghost" icon={<X />} disabled={busy} onClick={() => void skip(item)}>跳過</Button>
-                  <Button variant="primary" icon={<Check />} disabled={busy || draftEmpty} onClick={() => void approve(item)}>
+                  <Button variant="ghost" icon={<X />} disabled={busy || decided} onClick={() => void skip(item)}>跳過</Button>
+                  <Button variant="primary" icon={<Check />} disabled={busy || decided || draftEmpty} onClick={() => void approve(item)}>
                     核准
                   </Button>
                 </div>
