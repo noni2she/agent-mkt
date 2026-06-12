@@ -48,8 +48,8 @@ export default function App() {
       <header className="flex shrink-0 items-center gap-[10px] border-b border-[var(--border-subtle)] bg-[var(--surface-card)] px-[14px] py-[18px]">
         <img className="h-[30px] w-[30px] shrink-0" src="/logo-mark.svg" alt="" />
         <div>
-          <h1 className="[font:var(--fw-bold)_15px/1.1_var(--font-sans)] text-[var(--text-strong)]">Agent MKT</h1>
-          <p className="mt-0.5 font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)]">{brandLine}</p>
+          <h1 className="[font:var(--fw-black)_15px/1.1_var(--font-sans)] text-[var(--text-strong)]">Agent MKT</h1>
+          <p className="mt-[4px] font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-muted)]">{brandLine}</p>
         </div>
         <button
           type="button"
