@@ -2,6 +2,7 @@ import { createServer, type Server } from "node:http";
 import { ResponseEnvelopeSchema } from "../core/protocol.js";
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
+import { scoutBudget } from "./scoutTuning.js";
 import { getAgentDef, getReviews, getTenant, getTenantConfig, onboardTenant, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
 
 /** 建立 polling HTTP server：GET /poll?tenant=us、POST /result。 */
@@ -86,7 +87,7 @@ export function createPollServer(queue: CommandQueue): Server {
         keyword: kw,
         serpType: cfg.serpType,
         criteria: { minLikes: cfg.minLikes, maxAgeHours: cfg.maxAgeHours ?? undefined, excludeKeywords: cfg.excludeKeywords },
-        budget: {},
+        budget: scoutBudget(),
         targetRelevant: cfg.targetRelevant,
       })
         .catch((e) => console.error("[scout] 失敗:", e))

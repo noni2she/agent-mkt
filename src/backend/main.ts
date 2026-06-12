@@ -1,6 +1,7 @@
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
 import { createPollServer } from "./server.js";
+import { scoutBudget } from "./scoutTuning.js";
 import { getTenantConfig, type TenantConfig } from "./store.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
@@ -17,15 +18,6 @@ function criteriaFor(config: TenantConfig) {
     maxAgeHours: process.env.DEV_MAX_AGE_HOURS
       ? Number(process.env.DEV_MAX_AGE_HOURS)
       : config.maxAgeHours ?? undefined,
-  };
-}
-
-/** 取某租戶的海巡 budget（先到先停上限）。DEV_* env 可覆寫。 */
-function budgetFor() {
-  return {
-    targetCandidates: Number(process.env.DEV_TARGET ?? 10),
-    maxScrolls: Number(process.env.DEV_MAX_SCROLLS ?? 30),
-    maxScanned: Number(process.env.DEV_MAX_SCANNED ?? 60),
   };
 }
 
@@ -54,7 +46,7 @@ server.listen(PORT, () => {
     setTimeout(async () => {
       try {
         const criteria = criteriaFor(config);
-        const budget = budgetFor();
+        const budget = scoutBudget();
         const serpType = process.env.DEV_SERP === "recent" ? "recent" : config.serpType;
         const targetRelevant = process.env.DEV_TARGET_RELEVANT ? Number(process.env.DEV_TARGET_RELEVANT) : config.targetRelevant;
         console.log(`[dev] scout serp=${serpType} minLikes=${criteria.minLikes} maxAgeHours=${criteria.maxAgeHours ?? "∞"} 目標相關=${targetRelevant}`);
