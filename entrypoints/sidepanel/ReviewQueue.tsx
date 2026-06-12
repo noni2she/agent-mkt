@@ -51,7 +51,8 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     setError(null);
     try {
       const data = await fetchReviews();
-      const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0);
+      // 只顯示「待決定（pending）」的項目；已核准/已跳過的不再回到佇列。
+      const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0 && item.status === "pending");
       setItems(reviewable);
       setDrafts((prev) => {
         const next: Record<string, string> = {};
@@ -77,11 +78,16 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     return () => window.clearInterval(timer);
   }, [load]);
 
-  const updateVisibleItem = useCallback((updatedId: string, patch: Partial<ReviewItem>) => {
+  // 決定後（核准/跳過）把該項目從待審列表移除，避免重複點擊與計數累加。
+  const removeItem = useCallback((removedId: string) => {
     setItems((prev) => {
-      const next = prev.map((item) => (item.id === updatedId ? { ...item, ...patch } : item));
+      const next = prev.filter((item) => item.id !== removedId);
       onCountChange?.(next.length);
       return next;
+    });
+    setDrafts((prev) => {
+      const { [removedId]: _omit, ...rest } = prev;
+      return rest;
     });
   }, [onCountChange]);
 
@@ -94,13 +100,13 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       setRevCount((n) => n + 1);
       setApprCount((n) => n + 1);
       showToast("已核准，排入發送");
-      updateVisibleItem(item.id, { status: "approved", draft });
+      removeItem(item.id);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [drafts, showToast, updateVisibleItem]);
+  }, [drafts, showToast, removeItem]);
 
   const skip = useCallback(async (item: ReviewItem) => {
     const draft = drafts[item.id] ?? item.draft ?? "";
@@ -109,13 +115,13 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
       await updateReview(item.id, { status: "skipped", draft });
       setRevCount((n) => n + 1);
       showToast("跳過");
-      updateVisibleItem(item.id, { status: "skipped", draft });
+      removeItem(item.id);
     } catch (e) {
       showToast(e instanceof Error ? e.message : "更新失敗");
     } finally {
       setBusy(false);
     }
-  }, [drafts, showToast, updateVisibleItem]);
+  }, [drafts, showToast, removeItem]);
 
   const saveDraft = useCallback((item: ReviewItem) => {
     const draft = drafts[item.id] ?? "";
@@ -211,11 +217,11 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                   placeholder="輸入要送出的回覆..."
                 />
 
-                <div className="flex gap-[10px] rounded-[var(--radius-md)] border border-[var(--brand-soft-bd)] bg-[var(--brand-soft)] px-3 py-[10px] text-[var(--brand-700)]">
+                <div className="flex gap-[10px] rounded-[var(--radius-md)] border border-[var(--success-bd)] bg-[var(--success-soft)] px-3 py-[10px] text-[var(--success-text)]">
                   <Lightbulb width={17} height={17} className="mt-0.5 flex-none" />
                   <div>
-                    <div className="mb-1 font-[var(--font-mono)] text-[11px] font-semibold leading-none tracking-[0.06em] text-[var(--brand-700)] uppercase">推薦理由</div>
-                    <p className="[font:var(--fs-sm)/1.55_var(--font-sans)] text-[var(--brand-700)]">{item.reason || "符合目前海巡條件。"}</p>
+                    <div className="mb-1 font-[var(--font-mono)] text-[11px] font-semibold leading-none tracking-[0.06em] text-[var(--success-text)] uppercase">推薦理由</div>
+                    <p className="[font:var(--fs-sm)/1.55_var(--font-sans)] text-[var(--success-text)]">{item.reason || "符合目前海巡條件。"}</p>
                   </div>
                 </div>
 

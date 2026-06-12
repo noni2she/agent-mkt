@@ -270,11 +270,11 @@ code, kbd, samp {
    套用方式：document.documentElement.classList.add("dark")
    ============================================================ */
 .dark {
-  /* 文字 → 反相為亮色 */
+  /* 文字 → 反相為亮色（暗色下整體再提亮一級，確保 muted/faint 文字清楚） */
   --text-strong: var(--ink-50);
-  --text-body: var(--ink-150);
-  --text-muted: var(--ink-400);
-  --text-faint: var(--ink-500);
+  --text-body: var(--ink-100);
+  --text-muted: var(--ink-300);
+  --text-faint: var(--ink-400);
   --text-inverse: var(--ink-950);
   --text-link: var(--brand-300);
 

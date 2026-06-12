@@ -22,3 +22,10 @@ textarea {
 button {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* 所有按鈕不顯示 focus outline / ring */
+button:focus,
+button:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
