@@ -23,6 +23,12 @@ export default defineContentScript({
         sendResponse({ ok: true });
         return true;
       }
+      if (msg?.type === "post_reply") {
+        postReply(msg.postUrl as string, msg.draft as string, msg.dryRun === true)
+          .then((r) => sendResponse(r))
+          .catch((e) => sendResponse({ ok: false, error: String(e) }));
+        return true;
+      }
       return false;
     });
     console.log("[scout] content script ready");
@@ -179,4 +185,84 @@ async function scout(
   if (stale) console.warn(`[scout] ⚠️ 選擇器疑似失效：掃了 ${scanned} 張卡但 withText=${withText} withLikeBtn=${withLikeBtn}`);
   if (currentScoutAbort === abortController) currentScoutAbort = null;
   return { candidates: out, health: { scanned, withText, withLikeBtn } };
+}
+
+/** 在當前已登入的 Threads 分頁開啟貼文 → 回覆草稿 → 提交。dryRun 時跑流程但不真的提交。 */
+async function postReply(postUrl: string, draft: string, dryRun: boolean): Promise<{ ok: boolean; error?: string }> {
+  if (!draft || !draft.trim()) return { ok: false, error: "empty draft" };
+  try {
+    if (location.href !== postUrl) {
+      window.location.assign(postUrl);
+      await waitFor(() => document.querySelector('div[data-pressable-container="true"]') != null, 8000);
+    }
+    const replyTrigger = findReplyTrigger();
+    if (!replyTrigger) return { ok: false, error: "reply trigger not found" };
+    replyTrigger.click();
+    const editor = await waitForEl<HTMLElement>('div[contenteditable="true"][role="textbox"]', 6000);
+    if (!editor) return { ok: false, error: "reply editor not found" };
+    editor.focus();
+    document.execCommand("insertText", false, draft);
+    if (dryRun) {
+      console.log("[poster] dry-run：流程完成但不送出", { postUrl, draftPreview: draft.slice(0, 40) });
+      return { ok: true };
+    }
+    const submitBtn = findSubmitButton();
+    if (!submitBtn) return { ok: false, error: "submit button not found" };
+    submitBtn.click();
+    const success = await waitFor(() => {
+      const e = document.querySelector('div[contenteditable="true"][role="textbox"]') as HTMLElement | null;
+      return !e || (e.textContent ?? "").trim() === "";
+    }, 8000);
+    if (!success) return { ok: false, error: "submit timeout" };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as Error).message };
+  }
+}
+
+function findReplyTrigger(): HTMLElement | null {
+  const selectors = [
+    'svg[aria-label*="reply" i]',
+    'svg[aria-label*="留言"]',
+    'svg[aria-label*="回覆"]',
+    'div[role="button"][aria-label*="reply" i]',
+  ];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el) return (el.closest('[role="button"]') as HTMLElement) ?? (el as HTMLElement);
+  }
+  return null;
+}
+
+function findSubmitButton(): HTMLElement | null {
+  const selectors = [
+    'div[role="button"][aria-label*="post" i]',
+    'div[role="button"][aria-label*="送出"]',
+    'div[role="button"][aria-label*="發布"]',
+    'button[type="submit"]',
+  ];
+  for (const sel of selectors) {
+    const el = document.querySelector(sel);
+    if (el) return el as HTMLElement;
+  }
+  return null;
+}
+
+async function waitFor(pred: () => boolean, timeoutMs: number): Promise<boolean> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (pred()) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return false;
+}
+
+async function waitForEl<T extends Element>(selector: string, timeoutMs: number): Promise<T | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    const el = document.querySelector(selector) as T | null;
+    if (el) return el;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return null;
 }
