@@ -1,5 +1,6 @@
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
+import { startPoster } from "./poster.js";
 import { createPollServer } from "./server.js";
 import { scoutBudget } from "./scoutTuning.js";
 import { getTenantConfig, type TenantConfig } from "./store.js";
@@ -56,6 +57,8 @@ server.listen(PORT, () => {
       }
     }, 10_000);
   }
+
+  startPoster(queue);
 });
 
 const shutdown = () => {
