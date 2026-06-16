@@ -28,6 +28,12 @@ export const CommandSchema = z.discriminatedUnion("action", [
     budget: ScoutBudgetSchema.partial().optional(),
     excludeIds: z.array(z.string()).optional(), // 已處理貼文 id，content script 跳過
   }),
+  z.object({
+    action: z.literal("post_reply"),
+    postUrl: z.string(),
+    draft: z.string(),
+    dryRun: z.boolean().optional(),
+  }),
 ]);
 export type Command = z.infer<typeof CommandSchema>;
 

@@ -238,3 +238,28 @@ export function updateReviewItem(id: string, patch: { status?: string; draft?: s
   vals.push(id);
   getDb().prepare(`UPDATE review_item SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
 }
+
+export interface NextApproved {
+  id: string;
+  postUrl: string;
+  draft: string;
+}
+
+/** 取最舊一筆 status='approved' 的審核項，給 poster 發送；無則 null。 */
+export function getNextApproved(tenant: string): NextApproved | null {
+  const row = getDb()
+    .prepare(
+      `SELECT id, post_json, draft FROM review_item
+       WHERE tenant_id = ? AND status = 'approved' AND TRIM(COALESCE(draft,'')) != ''
+       ORDER BY created_at ASC LIMIT 1`,
+    )
+    .get(tenant) as { id: string; post_json: string; draft: string } | undefined;
+  if (!row) return null;
+  try {
+    const post = JSON.parse(row.post_json) as { url?: string };
+    if (!post.url) return null;
+    return { id: row.id, postUrl: post.url, draft: row.draft };
+  } catch {
+    return null;
+  }
+}
