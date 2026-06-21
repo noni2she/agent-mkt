@@ -3,7 +3,9 @@ import { ResponseEnvelopeSchema } from "../core/protocol.js";
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
 import { scoutBudget } from "./scoutTuning.js";
-import { getAgentDef, getReviews, getTenant, getTenantConfig, onboardTenant, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
+import { getAgentDef, getReviewItem, getReviews, getTenant, getTenantConfig, onboardTenant, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
+
+const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
 
 /** 建立 polling HTTP server：GET /poll?tenant=us、POST /result。 */
 export function createPollServer(queue: CommandQueue): Server {
@@ -108,6 +110,45 @@ export function createPollServer(queue: CommandQueue): Server {
       queue.requestScoutStop(tenant);
       res.statusCode = 202;
       res.end();
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/preview/resolve") {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      try {
+        const body = JSON.parse(raw || "{}") as { id?: string; action?: string };
+        const action = body.action === "sent" || body.action === "skipped" ? body.action : null;
+        res.setHeader("Content-Type", "application/json");
+        if (!body.id || !action) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "bad request" }));
+          return;
+        }
+        const item = getReviewItem(body.id);
+        if (!item) {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: "not found" }));
+          return;
+        }
+        if (item.tenant_id !== TENANT) {
+          res.statusCode = 403;
+          res.end(JSON.stringify({ error: "forbidden" }));
+          return;
+        }
+        if (item.status !== "previewing") {
+          res.statusCode = 409;
+          res.end(JSON.stringify({ error: `status=${item.status}, not previewing` }));
+          return;
+        }
+        updateReviewItem(body.id, { status: action });
+        console.log(`[server] preview 解決 id=${body.id} → ${action}`);
+        res.statusCode = 200;
+        res.end(JSON.stringify({ ok: true }));
+      } catch {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "bad request" }));
+      }
       return;
     }
 

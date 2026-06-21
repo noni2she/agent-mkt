@@ -17,6 +17,7 @@ export default defineBackground(() => {
       postUrl?: string;
       draft?: string;
       dryRun?: boolean;
+      reviewItemId?: string;
     };
   };
 
@@ -39,7 +40,7 @@ export default defineBackground(() => {
       } else if (command.action === "scout") {
         await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown });
       } else if (command.action === "post_reply") {
-        await handlePostReply(id, command as { postUrl: string; draft: string; dryRun?: boolean });
+        await handlePostReply(id, command as { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string });
       }
     }
     void pollOnce();
@@ -128,7 +129,7 @@ export default defineBackground(() => {
     await postResult({ type: "response", id, status: "ok", payload: "stopped" });
   }
 
-  async function handlePostReply(id: string, command: { postUrl: string; draft: string; dryRun?: boolean }) {
+  async function handlePostReply(id: string, command: { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string }) {
     const tabs = await chrome.tabs.query({
       url: ["https://www.threads.com/*", "https://www.threads.net/*"],
     });
@@ -144,6 +145,7 @@ export default defineBackground(() => {
         postUrl: command.postUrl,
         draft: command.draft,
         dryRun: command.dryRun,
+        reviewItemId: command.reviewItemId,
       });
       if (res?.ok) {
         await postResult({ type: "response", id, status: "ok" });
@@ -185,6 +187,27 @@ export default defineBackground(() => {
   setInterval(() => void pollOnce(), 5_000);
 
   chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true }).catch(() => {});
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg?.type !== "preview_auto_sent") return false;
+    void resolvePreviewSent(msg.id as string)
+      .then(() => sendResponse({ ok: true }))
+      .catch((e) => {
+        console.warn("[hands] preview auto resolve 失敗", e instanceof Error ? e.message : String(e));
+        sendResponse({ ok: false });
+      });
+    return true;
+  });
+
+  async function resolvePreviewSent(id: string): Promise<void> {
+    if (!id) return;
+    const r = await fetch(`${BASE}/api/v1/preview/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, action: "sent" }),
+    });
+    if (!r.ok) throw new Error(`preview resolve failed: ${r.status}`);
+  }
 
   console.log("[hands] background 啟動，開始 polling", BASE);
 });

@@ -51,6 +51,12 @@ export function getDb(): Database.Database {
       created_at TEXT NOT NULL
     );
   `);
+  try {
+    db.exec(`ALTER TABLE review_item ADD COLUMN previewing_at TEXT;`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/duplicate column/i.test(msg)) throw e;
+  }
   return db;
 }
 
@@ -165,6 +171,7 @@ export interface ReviewItemRow {
   draft: string;
   status: string;
   created_at: string;
+  previewing_at?: string | null;
 }
 
 export function saveReviewItem(row: ReviewItemRow): void {
@@ -228,15 +235,59 @@ export function getReviews(tenant: string): ReviewListItem[] {
   }));
 }
 
-/** 更新一筆 review_item 的 status 與/或 draft。 */
-export function updateReviewItem(id: string, patch: { status?: string; draft?: string }): void {
+/** 更新一筆 review_item 的 status、draft 與/或 previewing_at。 */
+export function updateReviewItem(id: string, patch: { status?: string; draft?: string; previewing_at?: string | null }): void {
   const sets: string[] = [];
   const vals: unknown[] = [];
   if (patch.status !== undefined) { sets.push("status = ?"); vals.push(patch.status); }
   if (patch.draft !== undefined) { sets.push("draft = ?"); vals.push(patch.draft); }
+  if (patch.previewing_at !== undefined) { sets.push("previewing_at = ?"); vals.push(patch.previewing_at); }
   if (!sets.length) return;
   vals.push(id);
   getDb().prepare(`UPDATE review_item SET ${sets.join(", ")} WHERE id = ?`).run(...vals);
+}
+
+/** 是否已有 dry-run 草稿正在等待人工確認。 */
+export function hasPreviewing(tenant: string): boolean {
+  const row = getDb()
+    .prepare(`SELECT 1 FROM review_item WHERE tenant_id = ? AND status = 'previewing' LIMIT 1`)
+    .get(tenant);
+  return row != null;
+}
+
+/** 將逾時的 previewing 項目標成 skipped，回傳清掃筆數。 */
+export function sweepStalePreviews(tenant: string, timeoutMin: number): number {
+  const cutoff = new Date(Date.now() - timeoutMin * 60_000).toISOString();
+  const result = getDb()
+    .prepare(
+      `UPDATE review_item
+       SET status = 'skipped'
+       WHERE tenant_id = ? AND status = 'previewing' AND previewing_at < ?`,
+    )
+    .run(tenant, cutoff);
+  return result.changes;
+}
+
+export interface ReviewItemLookup {
+  id: string;
+  tenant_id: string;
+  status: string;
+  postUrl: string;
+  draft: string;
+}
+
+/** 取單筆 review_item，供狀態推進端點驗證租戶與目前狀態。 */
+export function getReviewItem(id: string): ReviewItemLookup | null {
+  const row = getDb()
+    .prepare(`SELECT id, tenant_id, status, post_json, draft FROM review_item WHERE id = ?`)
+    .get(id) as { id: string; tenant_id: string; status: string; post_json: string; draft: string | null } | undefined;
+  if (!row) return null;
+  let postUrl = "";
+  try {
+    const post = JSON.parse(row.post_json) as { url?: string };
+    postUrl = post.url ?? "";
+  } catch {}
+  return { id: row.id, tenant_id: row.tenant_id, status: row.status, postUrl, draft: row.draft ?? "" };
 }
 
 export interface NextApproved {

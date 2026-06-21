@@ -1,10 +1,11 @@
 import type { HTMLAttributes } from "react";
 
-type Status = "pending" | "approved" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
+type Status = "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
 
 const statusTone: Record<Status, string> = {
   pending: "warning",
   approved: "success",
+  previewing: "warning",
   sent: "success",
   skipped: "neutral",
   rejected: "neutral",
@@ -16,6 +17,7 @@ const statusTone: Record<Status, string> = {
 const labels: Record<Status, string> = {
   pending: "待審",
   approved: "通過",
+  previewing: "預覽中",
   sent: "已送出",
   skipped: "跳過",
   rejected: "跳過",

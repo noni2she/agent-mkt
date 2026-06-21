@@ -24,7 +24,7 @@ export default defineContentScript({
         return true;
       }
       if (msg?.type === "post_reply") {
-        postReply(msg.postUrl as string, msg.draft as string, msg.dryRun === true)
+        postReply(msg.postUrl as string, msg.draft as string, msg.dryRun === true, msg.reviewItemId as string | undefined)
           .then((r) => sendResponse(r))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true;
@@ -188,7 +188,7 @@ async function scout(
 }
 
 /** 在當前已登入的 Threads 分頁開啟貼文 → 回覆草稿 → 提交。dryRun 時跑流程但不真的提交。 */
-async function postReply(postUrl: string, draft: string, dryRun: boolean): Promise<{ ok: boolean; error?: string }> {
+async function postReply(postUrl: string, draft: string, dryRun: boolean, reviewItemId?: string): Promise<{ ok: boolean; error?: string }> {
   if (!draft || !draft.trim()) return { ok: false, error: "empty draft" };
   try {
     if (location.href !== postUrl) {
@@ -204,6 +204,7 @@ async function postReply(postUrl: string, draft: string, dryRun: boolean): Promi
     document.execCommand("insertText", false, draft);
     if (dryRun) {
       console.log("[poster] dry-run：流程完成但不送出", { postUrl, draftPreview: draft.slice(0, 40) });
+      if (reviewItemId) startPreviewAutoSentPoller(reviewItemId, postUrl, editor);
       return { ok: true };
     }
     const submitBtn = findSubmitButton();
@@ -218,6 +219,34 @@ async function postReply(postUrl: string, draft: string, dryRun: boolean): Promi
   } catch (e) {
     return { ok: false, error: (e as Error).message };
   }
+}
+
+function startPreviewAutoSentPoller(reviewItemId: string, postUrl: string, initialEditor: HTMLElement): void {
+  const startedAt = Date.now();
+  let leftPostAt: number | null = null;
+  const timer = window.setInterval(() => {
+    const elapsed = Date.now() - startedAt;
+    if (elapsed > 30 * 60_000) {
+      window.clearInterval(timer);
+      return;
+    }
+
+    const onPost = location.href === postUrl;
+    if (!onPost) {
+      leftPostAt ??= Date.now();
+      if (Date.now() - leftPostAt >= 5000) window.clearInterval(timer);
+      return;
+    }
+    leftPostAt = null;
+
+    if (elapsed < 5000) return;
+    const editor = (document.querySelector('div[contenteditable="true"][role="textbox"]') as HTMLElement | null) ?? initialEditor;
+    const empty = !editor.isConnected || (editor.textContent ?? "").trim() === "";
+    if (!empty) return;
+
+    window.clearInterval(timer);
+    chrome.runtime.sendMessage({ type: "preview_auto_sent", id: reviewItemId }).catch(() => {});
+  }, 1500);
 }
 
 function findReplyTrigger(): HTMLElement | null {

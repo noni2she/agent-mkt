@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchReviews, updateReview, type ReviewItem } from "./api";
+import { fetchReviews, previewResolve, updateReview, type ReviewItem } from "./api";
 import { AlertBar, Button, Card, MetricChip, StatusChip, TextArea } from "./components";
 import { Check, Inbox, Lightbulb, RefreshCw, X } from "./icons";
 
@@ -22,9 +22,9 @@ function safeHandle(handle: string): string {
   return handle?.replace(/^@/, "") || "unknown";
 }
 
-function displayStatus(status: string): "pending" | "approved" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" {
-  if (["pending", "approved", "sent", "skipped", "rejected", "later", "blocked", "relevant"].includes(status)) {
-    return status as "pending" | "approved" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
+function displayStatus(status: string): "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" {
+  if (["pending", "approved", "previewing", "sent", "skipped", "rejected", "later", "blocked", "relevant"].includes(status)) {
+    return status as "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
   }
   return "pending";
 }
@@ -117,6 +117,21 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     }
   }, [drafts, showToast, markDecided]);
 
+  const resolvePreview = useCallback(async (item: ReviewItem, action: "sent" | "skipped") => {
+    const draft = drafts[item.id] ?? item.draft ?? "";
+    setBusy(true);
+    try {
+      await previewResolve(item.id, action);
+      showToast(action === "sent" ? "已確認送出" : "已取消發送");
+      markDecided(item.id, action, draft);
+      void load();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "更新失敗");
+    } finally {
+      setBusy(false);
+    }
+  }, [drafts, showToast, markDecided, load]);
+
   const saveDraft = useCallback((item: ReviewItem) => {
     const draft = drafts[item.id] ?? "";
     if (draft === item.draft) return;
@@ -183,9 +198,10 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
             const draftEmpty = draft.trim().length === 0;
             const overLimit = draft.length > 60;
             const decided = item.status !== "pending";
+            const previewing = item.status === "previewing";
 
             return (
-              <Card key={item.id} elevated className={`flex flex-col gap-4 ${decided ? "opacity-60" : ""}`}>
+              <Card key={item.id} elevated className={`flex flex-col gap-4 ${decided && !previewing ? "opacity-60" : ""}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <a className="block truncate [font:var(--fw-bold)_13.5px/1_var(--font-sans)] text-[var(--text-strong)] no-underline hover:underline" href={item.post.url} target="_blank" rel="noreferrer">@{handle}</a>
@@ -213,6 +229,12 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                   placeholder="輸入要送出的回覆..."
                 />
 
+                {previewing ? (
+                  <div className="rounded-[var(--radius-md)] border border-[var(--warning-bd)] bg-[var(--warning-soft)] px-3 py-[10px] [font:var(--fs-sm)/1.5_var(--font-sans)] text-[var(--warning-text)]">
+                    草稿已填入 Threads 編輯器，請至該分頁確認後選擇：
+                  </div>
+                ) : null}
+
                 <div className="flex gap-[10px] rounded-[var(--radius-md)] border border-[var(--success-bd)] bg-[var(--success-soft)] px-3 py-[10px] text-[var(--success-text)]">
                   <Lightbulb width={17} height={17} className="mt-0.5 flex-none" />
                   <div>
@@ -221,12 +243,19 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-end gap-[10px]">
-                  <Button variant="ghost" icon={<X />} disabled={busy || decided} onClick={() => void skip(item)}>跳過</Button>
-                  <Button variant="primary" icon={<Check />} disabled={busy || decided || draftEmpty} onClick={() => void approve(item)}>
-                    核准
-                  </Button>
-                </div>
+                {previewing ? (
+                  <div className="flex flex-wrap items-center justify-end gap-[10px]">
+                    <Button variant="danger" icon={<X />} disabled={busy} onClick={() => void resolvePreview(item, "skipped")}>取消發送</Button>
+                    <Button variant="primary" icon={<Check />} disabled={busy} onClick={() => void resolvePreview(item, "sent")}>確認送出</Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-end gap-[10px]">
+                    <Button variant="ghost" icon={<X />} disabled={busy || decided} onClick={() => void skip(item)}>跳過</Button>
+                    <Button variant="primary" icon={<Check />} disabled={busy || decided || draftEmpty} onClick={() => void approve(item)}>
+                      核准
+                    </Button>
+                  </div>
+                )}
                 {overLimit ? <div className="[font:var(--fs-xs)/1.5_var(--font-sans)] text-[var(--danger-text)]">草稿超過 60 字，送出前建議再收斂。</div> : null}
               </Card>
             );

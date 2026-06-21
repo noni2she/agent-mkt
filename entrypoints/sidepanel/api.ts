@@ -110,3 +110,12 @@ export async function updateReview(id: string, patch: { status?: string; draft?:
   });
   if (!r.ok) throw new Error(`update review failed: ${r.status}`);
 }
+
+export async function previewResolve(id: string, action: "sent" | "skipped"): Promise<void> {
+  const r = await fetch(`${BASE}/api/v1/preview/resolve`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id, action }),
+  });
+  if (!r.ok) throw new Error(`preview resolve failed: ${r.status}`);
+}

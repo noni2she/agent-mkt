@@ -33,6 +33,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
     postUrl: z.string(),
     draft: z.string(),
     dryRun: z.boolean().optional(),
+    reviewItemId: z.string().optional(),
   }),
 ]);
 export type Command = z.infer<typeof CommandSchema>;

@@ -9,6 +9,7 @@
  *   POSTER_MAX_PER_SESSION      單 session 最多發幾篇（避免一次失控），預設 10
  *   POSTER_SESSION_HOURS        single session 持續多久（小時），預設 3
  *   POSTER_POLL_MS              掃 DB 找下一篇 approved 的週期（毫秒），預設 5000
+ *   POSTER_PREVIEW_TIMEOUT_MIN  dry-run 預覽等待人工確認逾時分鐘數，預設 15
  */
 function num(value: string | undefined, fallback: number): number {
   const n = value != null ? Number(value) : NaN;
@@ -21,6 +22,7 @@ export interface PosterTuning {
   maxPerSession: number;
   sessionHours: number;
   pollMs: number;
+  previewTimeoutMin: number;
 }
 
 export function posterTuning(): PosterTuning {
@@ -31,5 +33,6 @@ export function posterTuning(): PosterTuning {
     maxPerSession: num(env.POSTER_MAX_PER_SESSION, 10),
     sessionHours: num(env.POSTER_SESSION_HOURS, 3),
     pollMs: num(env.POSTER_POLL_MS, 5000),
+    previewTimeoutMin: num(env.POSTER_PREVIEW_TIMEOUT_MIN, 15),
   };
 }

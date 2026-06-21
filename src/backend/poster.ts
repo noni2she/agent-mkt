@@ -1,6 +1,6 @@
 import { CommandQueue } from "./commandQueue.js";
 import { posterTuning } from "./posterTuning.js";
-import { getNextApproved, updateReviewItem } from "./store.js";
+import { getNextApproved, hasPreviewing, sweepStalePreviews, updateReviewItem } from "./store.js";
 import { SessionThrottle } from "../core/throttle.js";
 
 const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
@@ -27,6 +27,12 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
       stopped = true;
       return;
     }
+    const swept = sweepStalePreviews(TENANT, t.previewTimeoutMin);
+    if (swept > 0) console.log(`[poster] 清理超時 previewing ${swept} 筆`);
+    if (hasPreviewing(TENANT)) {
+      timer = setTimeout(tick, t.pollMs);
+      return;
+    }
     const next = getNextApproved(TENANT);
     if (!next) {
       timer = setTimeout(tick, t.pollMs);
@@ -38,13 +44,18 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
     try {
       const res = await queue.enqueue(
         TENANT,
-        { action: "post_reply", postUrl: next.postUrl, draft: next.draft, dryRun: t.dryRun },
+        { action: "post_reply", postUrl: next.postUrl, draft: next.draft, dryRun: t.dryRun, reviewItemId: next.id },
         90_000,
       );
       if (res.status === "ok") {
-        updateReviewItem(next.id, { status: "sent" });
-        sentInSession += 1;
-        console.log(`[poster] ✅ 已${t.dryRun ? "（dry-run）" : ""}發送 id=${next.id}（本 session ${sentInSession}/${t.maxPerSession}）`);
+        if (t.dryRun) {
+          updateReviewItem(next.id, { status: "previewing", previewing_at: new Date().toISOString() });
+          console.log(`[poster] 🔍 dry-run 草稿已填入 id=${next.id}，等待人工確認（timeout=${t.previewTimeoutMin}min，預設 15min）`);
+        } else {
+          updateReviewItem(next.id, { status: "sent" });
+          sentInSession += 1;
+          console.log(`[poster] ✅ 已發送 id=${next.id}（本 session ${sentInSession}/${t.maxPerSession}）`);
+        }
       } else {
         console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=${res.status} error=${res.error ?? ""}；保留 approved 由人工處理`);
       }
