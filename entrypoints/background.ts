@@ -7,7 +7,17 @@ export default defineBackground(() => {
 
   type PolledCommand = {
     id: string;
-    command: { action: string; keyword?: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown };
+    command: {
+      action: string;
+      keyword?: string;
+      serpType?: string;
+      criteria?: unknown;
+      budget?: unknown;
+      excludeIds?: unknown;
+      postUrl?: string;
+      draft?: string;
+      dryRun?: boolean;
+    };
   };
 
   async function pollOnce() {
@@ -28,6 +38,8 @@ export default defineBackground(() => {
         await handleScoutStop(id);
       } else if (command.action === "scout") {
         await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown });
+      } else if (command.action === "post_reply") {
+        await handlePostReply(id, command as { postUrl: string; draft: string; dryRun?: boolean });
       }
     }
     void pollOnce();
@@ -114,6 +126,33 @@ export default defineBackground(() => {
       }
     }
     await postResult({ type: "response", id, status: "ok", payload: "stopped" });
+  }
+
+  async function handlePostReply(id: string, command: { postUrl: string; draft: string; dryRun?: boolean }) {
+    const tabs = await chrome.tabs.query({
+      url: ["https://www.threads.com/*", "https://www.threads.net/*"],
+    });
+    const tab = tabs[0];
+    if (!tab?.id) {
+      console.log("[hands] post_reply: 沒有開著的 Threads 分頁");
+      await postResult({ type: "response", id, status: "element_not_found", error: "no threads tab" });
+      return;
+    }
+    try {
+      const res = await chrome.tabs.sendMessage(tab.id, {
+        type: "post_reply",
+        postUrl: command.postUrl,
+        draft: command.draft,
+        dryRun: command.dryRun,
+      });
+      if (res?.ok) {
+        await postResult({ type: "response", id, status: "ok" });
+      } else {
+        await postResult({ type: "response", id, status: "fail", error: res?.error ?? "post_reply failed" });
+      }
+    } catch (e) {
+      await postResult({ type: "response", id, status: "fail", error: String(e) });
+    }
   }
 
   /** 導頁並等該分頁 load 完成，再多等一下讓 content script 注入 + Threads 動態內容載入。 */
