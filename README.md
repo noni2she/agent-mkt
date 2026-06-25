@@ -1,4 +1,6 @@
-# agent-mkt — Threads AI 行銷小編
+# Agent MKT
+
+> **Your AI co-pilot for Threads — it patrols hot posts, drafts replies, and leaves the send button to you.**
 
 幫品牌在 Threads 上做「半自動海巡」與「人工確認後發布回覆」的 AI 小編。整條流程：
 
@@ -12,17 +14,15 @@
 
 **設計原則：AI 絕對不替你按送出。** 第一階段全程 dry-run（草稿幫你填、最後送出由你決定）。
 
-> 目前狀態：團隊內部 PoC 測試。一個品牌、一個 Threads 帳號，由行銷負責人操作。
-
 ---
 
-## 一、第一次安裝（給行銷負責人）
+## 一、第一次安裝
 
 ### 你需要先有
 
 - macOS 或 Windows 電腦
 - 已登入 Threads 帳號的 Chrome 瀏覽器
-- OpenAI API Key（向工程窗口拿）
+- OpenAI API Key
 
 ### 步驟
 
@@ -36,7 +36,7 @@
 node --version
 ```
 
-應該看到 `v22.x.x` 或更新的版本。看不到請聯絡工程窗口。
+應該看到 `v22.x.x` 或更新的版本。
 
 #### 2. 下載專案
 
@@ -69,7 +69,7 @@ cp .env.example .env
 OPENAI_API_KEY=sk-...
 ```
 
-把 `sk-...` 換成工程窗口給你的 key（會是 `sk-` 開頭的長字串），存檔。
+把 `sk-...` 換成你的 OpenAI API key（會是 `sk-` 開頭的長字串），存檔。
 
 #### 5. 驗證安裝
 
@@ -77,7 +77,7 @@ OPENAI_API_KEY=sk-...
 npm run typecheck && npm test
 ```
 
-最後應該出現 `Tests  26 passed (26)`。出現紅字請聯絡工程窗口。
+最後應該出現 `Tests  26 passed (26)`。
 
 #### 6. 建構 Chrome 擴充
 
@@ -214,13 +214,11 @@ rm -f data/agent-mkt.db data/agent-mkt.db-wal data/agent-mkt.db-shm
 | 海巡跑不出來、Threads 分頁沒動 | 沒開 Threads 分頁、或被換到別的分頁 | 確保有一個 Threads 分頁在前景，重新海巡 |
 | 「預覽中」狀態卡了 30 分鐘 | 系統 15 分鐘 timeout 後標 skipped | 重新從審核佇列核准即可 |
 | 擴充改了 code 沒生效 | Chrome 擴充需手動 reload | `chrome://extensions` → 點擴充卡片的「重新整理」按鈕 |
-| Backend log 出現 `reply trigger not found` | Threads 改版了 DOM 結構 | 截圖+log 傳給工程窗口修選擇器 |
-
-工程窗口聯絡方式：（內部 Slack / Email）
+| Backend log 出現 `reply trigger not found` | Threads 改版了 DOM 結構 | 更新 `entrypoints/content.ts` 的 DOM 選擇器（見「開發者參考」） |
 
 ---
 
-## 五、給工程窗口的補充
+## 五、開發者參考
 
 ### 架構
 
@@ -255,7 +253,13 @@ npm run typecheck && npm test          # 26 tests
 npm run ext:build                       # 擴充 build
 ```
 
-### 後續路線
+---
 
-- **Plan 10b**：後端佈到雲（Fly.io）、bearer token auth、OpenAI key 集中、`/dashboard` web 端、audit log。**等公司 OpenAI 帳號到位再動工。**
-- **Plan 11+**：真·多租戶、Threads DOM adapter 集中、選擇器自癒、儀表板。
+## 備註（過渡期狀態）
+
+> 以下為當前專案的階段性狀態。未來功能完成、上線後會移除此區塊。
+
+- **PoC 階段**：團隊內部測試中，使用情境為單一品牌、單一 Threads 帳號操作。多品牌、多帳號、雲端後端、儀表板等仍在路線圖上。
+- **路線圖**
+  - **Plan 10b**：後端佈到雲（Fly.io）、bearer token auth、OpenAI key 集中管理、`/dashboard` web 端、audit log。等公司 OpenAI 帳號到位再動工。
+  - **Plan 11+**：真·多租戶、Threads DOM adapter 集中、選擇器自癒、儀表板。
