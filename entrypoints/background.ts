@@ -18,6 +18,7 @@ export default defineBackground(() => {
       draft?: string;
       dryRun?: boolean;
       reviewItemId?: string;
+      expectedHandle?: string;
     };
   };
 
@@ -38,9 +39,9 @@ export default defineBackground(() => {
       } else if (command.action === "scout_stop") {
         await handleScoutStop(id);
       } else if (command.action === "scout") {
-        await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown });
+        await handleScout(id, command as { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown; expectedHandle?: string });
       } else if (command.action === "post_reply") {
-        await handlePostReply(id, command as { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string });
+        await handlePostReply(id, command as { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string; expectedHandle?: string });
       }
     }
     void pollOnce();
@@ -58,7 +59,7 @@ export default defineBackground(() => {
     }
   }
 
-  async function handleScout(id: string, command: { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown }) {
+  async function handleScout(id: string, command: { keyword: string; serpType?: string; criteria?: unknown; budget?: unknown; excludeIds?: unknown; expectedHandle?: string }) {
     const tabs = await chrome.tabs.query({
       url: ["https://www.threads.com/*", "https://www.threads.net/*"],
     });
@@ -88,6 +89,7 @@ export default defineBackground(() => {
         criteria: command.criteria,
         budget: command.budget,
         excludeIds: command.excludeIds,
+        expectedHandle: command.expectedHandle,
       });
       if (res?.ok) {
         const h = res.health as { scanned: number; withText: number; withLikeBtn: number } | undefined;
@@ -106,7 +108,13 @@ export default defineBackground(() => {
           await postResult({ type: "response", id, status: "ok", payload: res.candidates });
         }
       } else {
-        await postResult({ type: "response", id, status: "fail", error: res?.error ?? "scout failed" });
+        const error = res?.error ?? "scout failed";
+        await postResult({
+          type: "response",
+          id,
+          status: typeof error === "string" && error.startsWith("mismatch:") ? "account_mismatch" : "fail",
+          error,
+        });
       }
     } catch (e) {
       await postResult({ type: "response", id, status: "fail", error: String(e) });
@@ -129,7 +137,7 @@ export default defineBackground(() => {
     await postResult({ type: "response", id, status: "ok", payload: "stopped" });
   }
 
-  async function handlePostReply(id: string, command: { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string }) {
+  async function handlePostReply(id: string, command: { postUrl: string; draft: string; dryRun?: boolean; reviewItemId?: string; expectedHandle?: string }) {
     const tabs = await chrome.tabs.query({
       url: ["https://www.threads.com/*", "https://www.threads.net/*"],
     });
@@ -146,11 +154,18 @@ export default defineBackground(() => {
         draft: command.draft,
         dryRun: command.dryRun,
         reviewItemId: command.reviewItemId,
+        expectedHandle: command.expectedHandle,
       });
       if (res?.ok) {
         await postResult({ type: "response", id, status: "ok" });
       } else {
-        await postResult({ type: "response", id, status: "fail", error: res?.error ?? "post_reply failed" });
+        const error = res?.error ?? "post_reply failed";
+        await postResult({
+          type: "response",
+          id,
+          status: typeof error === "string" && error.startsWith("mismatch:") ? "account_mismatch" : "fail",
+          error,
+        });
       }
     } catch (e) {
       await postResult({ type: "response", id, status: "fail", error: String(e) });

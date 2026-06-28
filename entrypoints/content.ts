@@ -8,13 +8,25 @@ export default defineContentScript({
   async main() {
     chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       if (msg?.type === "scout") {
-        scout(
-          msg.keyword as string,
-          msg.criteria as Partial<ScoutCriteria> | undefined,
-          msg.budget as Partial<ScoutBudget> | undefined,
-          (msg.excludeIds as string[] | undefined) ?? [],
-        )
-          .then((r) => sendResponse({ ok: true, candidates: r.candidates, health: r.health }))
+        (async () => {
+          if (typeof msg.expectedHandle === "string") {
+            const actual = await getCurrentThreadsHandle();
+            if (actual === null || actual.toLowerCase() !== msg.expectedHandle.toLowerCase()) {
+              return {
+                ok: false,
+                error: `mismatch:actual=${actual ?? "unknown"}, expected=${msg.expectedHandle}`,
+              };
+            }
+          }
+          const r = await scout(
+            msg.keyword as string,
+            msg.criteria as Partial<ScoutCriteria> | undefined,
+            msg.budget as Partial<ScoutBudget> | undefined,
+            (msg.excludeIds as string[] | undefined) ?? [],
+          );
+          return { ok: true, candidates: r.candidates, health: r.health };
+        })()
+          .then((r) => sendResponse(r))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true; // async sendResponse
       }
@@ -24,7 +36,23 @@ export default defineContentScript({
         return true;
       }
       if (msg?.type === "post_reply") {
-        postReply(msg.postUrl as string, msg.draft as string, msg.dryRun === true, msg.reviewItemId as string | undefined)
+        (async () => {
+          if (typeof msg.expectedHandle === "string") {
+            const actual = await getCurrentThreadsHandle();
+            if (actual === null || actual.toLowerCase() !== msg.expectedHandle.toLowerCase()) {
+              return {
+                ok: false,
+                error: `mismatch:actual=${actual ?? "unknown"}, expected=${msg.expectedHandle}`,
+              };
+            }
+          }
+          return postReply(
+            msg.postUrl as string,
+            msg.draft as string,
+            msg.dryRun === true,
+            msg.reviewItemId as string | undefined,
+          );
+        })()
           .then((r) => sendResponse(r))
           .catch((e) => sendResponse({ ok: false, error: String(e) }));
         return true;
@@ -40,6 +68,38 @@ const SEL = {
   postText: '[data-testid="post-text"], div[dir="auto"]',
   likeBtn: 'svg[aria-label*="讚"], svg[aria-label*="ike"]',
 };
+
+const THREADS_HANDLE_SELECTORS = [
+  'a[role="link"][aria-label*="Profile" i]',
+  'nav a[href^="/@"][aria-current="page"]',
+  'header img[alt^="@"]',
+] as const;
+const HANDLE_RETRY_INTERVAL_MS = 500;
+const HANDLE_MAX_ATTEMPTS = 6;
+
+/** Read the currently logged-in Threads handle without changing the page. */
+async function getCurrentThreadsHandle(): Promise<string | null> {
+  for (let attempt = 0; attempt < HANDLE_MAX_ATTEMPTS; attempt += 1) {
+    for (const selector of THREADS_HANDLE_SELECTORS) {
+      const el = document.querySelector(selector);
+      if (!el) continue;
+
+      if (selector === THREADS_HANDLE_SELECTORS[2]) {
+        const alt = el.getAttribute("alt") ?? "";
+        if (alt.startsWith("@") && alt.length > 1) return alt.slice(1);
+        continue;
+      }
+
+      const href = el.getAttribute("href") ?? "";
+      if (href.startsWith("/@")) {
+        const handle = href.slice(2).split(/[/?#]/, 1)[0];
+        if (handle) return handle;
+      }
+    }
+    await new Promise<void>((resolve) => window.setTimeout(resolve, HANDLE_RETRY_INTERVAL_MS));
+  }
+  return null;
+}
 
 /** Threads UI 按鈕文字（非內文），抓取時排除。 */
 const JUNK_LABELS = new Set(["Translate", "翻譯", "查看翻譯", "See translation"]);
