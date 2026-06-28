@@ -53,9 +53,13 @@ describe("startPoster", () => {
     tuning?: typeof baseTuning;
     hasPreviewing?: boolean;
     next?: { id: string; postUrl: string; draft: string } | null;
-    enqueueResult?: { type: "response"; id: string; status: "ok" };
+    enqueueResult?: { type: "response"; id: string; status: string; error?: string };
+    activeAccountId?: string | null;
+    throttleImplementation?: () => { sessionExpired: ReturnType<typeof vi.fn>; gateReply: ReturnType<typeof vi.fn> };
   }) {
+    let activeAccountId = opts.activeAccountId === undefined ? accountId : opts.activeAccountId;
     const store = {
+      getActiveAccountId: vi.fn((_tenant: string) => activeAccountId),
       getNextApproved: vi.fn((_tenant: string, _accountId: string) => opts.next ?? null),
       hasPreviewing: vi.fn((_tenant: string, _accountId: string) => opts.hasPreviewing ?? false),
       sweepStalePreviews: vi.fn((_tenant: string, _accountId: string, _timeoutMin: number) => 0),
@@ -65,23 +69,28 @@ describe("startPoster", () => {
       posterTuning: () => opts.tuning ?? baseTuning,
     }));
     vi.doMock("./store.js", () => ({
-      getNextApproved: (tenant: string) => store.getNextApproved(tenant, accountId),
-      hasPreviewing: (tenant: string) => store.hasPreviewing(tenant, accountId),
-      sweepStalePreviews: (tenant: string, timeoutMin: number) =>
-        store.sweepStalePreviews(tenant, accountId, timeoutMin),
+      getActiveAccountId: store.getActiveAccountId,
+      getNextApproved: store.getNextApproved,
+      hasPreviewing: store.hasPreviewing,
+      sweepStalePreviews: store.sweepStalePreviews,
       updateReviewItem: store.updateReviewItem,
     }));
     vi.doMock("../core/throttle.js", () => ({
-      SessionThrottle: vi.fn().mockImplementation(() => ({
+      SessionThrottle: vi.fn().mockImplementation(opts.throttleImplementation ?? (() => ({
         sessionExpired: vi.fn(() => false),
         gateReply: vi.fn(async () => {}),
-      })),
+      }))),
     }));
     const { startPoster } = await import("./poster.js");
     const queue = {
       enqueue: vi.fn(async () => opts.enqueueResult ?? { type: "response", id: "cmd-1", status: "ok" }),
     };
-    return { startPoster, store, queue };
+    return {
+      startPoster,
+      store,
+      queue,
+      setActiveAccountId: (id: string | null) => { activeAccountId = id; },
+    };
   }
 
   it("does not pick or enqueue when a preview is already waiting", async () => {
@@ -128,5 +137,57 @@ describe("startPoster", () => {
     poster.stop();
 
     expect(store.updateReviewItem).toHaveBeenCalledWith("review-2", { status: "sent" });
+  });
+
+  it("does not fetch or enqueue when the active account is null", async () => {
+    vi.useFakeTimers();
+    const { startPoster, store, queue } = await loadPoster({ activeAccountId: null });
+    const poster = startPoster(queue as never);
+    await vi.advanceTimersByTimeAsync(1);
+    poster.stop();
+
+    expect(store.sweepStalePreviews).not.toHaveBeenCalled();
+    expect(store.hasPreviewing).not.toHaveBeenCalled();
+    expect(store.getNextApproved).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("keeps isolated throttle state when switching between accounts", async () => {
+    vi.useFakeTimers();
+    const gates: Array<ReturnType<typeof vi.fn>> = [];
+    const throttleConstructor = vi.fn().mockImplementation(() => {
+      const gateReply = vi.fn(async () => {});
+      gates.push(gateReply);
+      return { sessionExpired: vi.fn(() => false), gateReply };
+    });
+    const { startPoster, queue, setActiveAccountId } = await loadPoster({
+      next: { id: "review-throttle", postUrl: "https://threads.net/@a/post/throttle", draft: "hello" },
+      throttleImplementation: throttleConstructor,
+    });
+    const poster = startPoster(queue as never);
+
+    await vi.advanceTimersByTimeAsync(1);
+    setActiveAccountId("account-2");
+    await vi.advanceTimersByTimeAsync(1);
+    setActiveAccountId(accountId);
+    await vi.advanceTimersByTimeAsync(1);
+    poster.stop();
+
+    expect(throttleConstructor).toHaveBeenCalledTimes(2);
+    expect(gates[0]).toHaveBeenCalledTimes(2);
+    expect(gates[1]).toHaveBeenCalledTimes(1);
+  });
+
+  it("preserves approved status after an account_mismatch response", async () => {
+    vi.useFakeTimers();
+    const { startPoster, store, queue } = await loadPoster({
+      next: { id: "review-mismatch", postUrl: "https://threads.net/@a/post/mismatch", draft: "hello" },
+      enqueueResult: { type: "response", id: "cmd-mismatch", status: "account_mismatch", error: "wrong account" },
+    });
+    const poster = startPoster(queue as never);
+    await vi.advanceTimersByTimeAsync(1);
+    poster.stop();
+
+    expect(store.updateReviewItem).not.toHaveBeenCalled();
   });
 });

@@ -1,23 +1,41 @@
 import { CommandQueue } from "./commandQueue.js";
 import { posterTuning } from "./posterTuning.js";
-import { getNextApproved, hasPreviewing, sweepStalePreviews, updateReviewItem } from "./store.js";
+import { getActiveAccountId, getNextApproved, hasPreviewing, sweepStalePreviews, updateReviewItem } from "./store.js";
 import { SessionThrottle } from "../core/throttle.js";
 
 const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
+// TODO(Plan 10c Task 5): replace with enum value from protocol.ts ResponseEnvelopeSchema.
+const ACCOUNT_MISMATCH = "account_mismatch";
 
 /** 啟動發布 poster：常駐 loop，找 approved → 節流 → 下指令 → 標 sent。 */
 export function startPoster(queue: CommandQueue): { stop: () => void } {
   const t = posterTuning();
-  const throttle = new SessionThrottle(1000, t.sessionHours, t.cooldownMinRange);
-  let sentInSession = 0;
+  const throttles = new Map<string, SessionThrottle>();
+  const sentInSession = new Map<string, number>();
   let stopped = false;
   let timer: NodeJS.Timeout | null = null;
+
+  const getThrottle = (accountId: string): SessionThrottle => {
+    let throttle = throttles.get(accountId);
+    if (!throttle) {
+      throttle = new SessionThrottle(1000, t.sessionHours, t.cooldownMinRange);
+      throttles.set(accountId, throttle);
+    }
+    return throttle;
+  };
 
   console.log(`[poster] 啟動：dryRun=${t.dryRun} cooldown=${t.cooldownMinRange[0]}-${t.cooldownMinRange[1]}min maxPerSession=${t.maxPerSession} pollMs=${t.pollMs}`);
 
   const tick = async () => {
     if (stopped) return;
-    if (sentInSession >= t.maxPerSession) {
+    const activeId = getActiveAccountId(TENANT);
+    if (!activeId) {
+      timer = setTimeout(tick, t.pollMs);
+      return;
+    }
+    const throttle = getThrottle(activeId);
+    const sentCount = sentInSession.get(activeId) ?? 0;
+    if (sentCount >= t.maxPerSession) {
       console.log(`[poster] 已達單 session 上限 ${t.maxPerSession}，停止本 session`);
       stopped = true;
       return;
@@ -27,13 +45,13 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
       stopped = true;
       return;
     }
-    const swept = sweepStalePreviews(TENANT, t.previewTimeoutMin);
-    if (swept > 0) console.log(`[poster] 清理超時 previewing ${swept} 筆`);
-    if (hasPreviewing(TENANT)) {
+    const swept = sweepStalePreviews(TENANT, activeId, t.previewTimeoutMin);
+    if (swept > 0) console.log(`[poster] 清理 @${activeId} 超時 previewing ${swept} 筆`);
+    if (hasPreviewing(TENANT, activeId)) {
       timer = setTimeout(tick, t.pollMs);
       return;
     }
-    const next = getNextApproved(TENANT);
+    const next = getNextApproved(TENANT, activeId);
     if (!next) {
       timer = setTimeout(tick, t.pollMs);
       return;
@@ -44,6 +62,7 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
     try {
       const res = await queue.enqueue(
         TENANT,
+        // TODO(Plan 10c Task 5): add expectedHandle after CommandSchema supports it.
         { action: "post_reply", postUrl: next.postUrl, draft: next.draft, dryRun: t.dryRun, reviewItemId: next.id },
         90_000,
       );
@@ -53,9 +72,12 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
           console.log(`[poster] 🔍 dry-run 草稿已填入 id=${next.id}，等待人工確認（timeout=${t.previewTimeoutMin}min，預設 15min）`);
         } else {
           updateReviewItem(next.id, { status: "sent" });
-          sentInSession += 1;
-          console.log(`[poster] ✅ 已發送 id=${next.id}（本 session ${sentInSession}/${t.maxPerSession}）`);
+          const nextSentCount = sentCount + 1;
+          sentInSession.set(activeId, nextSentCount);
+          console.log(`[poster] ✅ 已發送 id=${next.id}（本 session ${nextSentCount}/${t.maxPerSession}）`);
         }
+      } else if ((res.status as string) === ACCOUNT_MISMATCH) {
+        console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=${ACCOUNT_MISMATCH} error=${res.error ?? ""}；保留 approved 由人工處理`);
       } else {
         console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=${res.status} error=${res.error ?? ""}；保留 approved 由人工處理`);
       }
