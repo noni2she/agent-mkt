@@ -347,16 +347,18 @@ export interface ReviewListItem {
   created_at: string;
 }
 
-/** 取某租戶所有審核項目，新到舊。 */
-export function getReviews(tenant: string): ReviewListItem[] {
+/** 取某租戶指定 Threads 帳號的審核項目，新到舊。 */
+export function getReviews(tenant: string, accountId?: string | null): ReviewListItem[] {
+  const accountFilter = accountId === undefined ? "" : " AND threads_account_id = ?";
+  const params = accountId === undefined ? [tenant] : [tenant, accountId];
   const rows = getDb()
     .prepare(
       `SELECT id, post_json, relevant, reason, draft, status, created_at
        FROM review_item
-       WHERE tenant_id = ? AND relevant = 1 AND TRIM(COALESCE(draft, '')) != ''
+       WHERE tenant_id = ?${accountFilter} AND relevant = 1 AND TRIM(COALESCE(draft, '')) != ''
        ORDER BY created_at DESC`,
     )
-    .all(tenant) as Array<{ id: string; post_json: string; relevant: number; reason: string; draft: string; status: string; created_at: string }>;
+    .all(...params) as Array<{ id: string; post_json: string; relevant: number; reason: string; draft: string; status: string; created_at: string }>;
   return rows.map((r) => ({
     id: r.id,
     post: JSON.parse(r.post_json),

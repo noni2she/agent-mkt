@@ -60,6 +60,7 @@ describe("startPoster", () => {
     let activeAccountId = opts.activeAccountId === undefined ? accountId : opts.activeAccountId;
     const store = {
       getActiveAccountId: vi.fn((_tenant: string) => activeAccountId),
+      getActiveAccount: vi.fn((_tenant: string) => activeAccountId ? { id: activeAccountId, handle: `handle-${activeAccountId}` } : null),
       getNextApproved: vi.fn((_tenant: string, _accountId: string) => opts.next ?? null),
       hasPreviewing: vi.fn((_tenant: string, _accountId: string) => opts.hasPreviewing ?? false),
       sweepStalePreviews: vi.fn((_tenant: string, _accountId: string, _timeoutMin: number) => 0),
@@ -69,6 +70,7 @@ describe("startPoster", () => {
       posterTuning: () => opts.tuning ?? baseTuning,
     }));
     vi.doMock("./store.js", () => ({
+      getActiveAccount: store.getActiveAccount,
       getActiveAccountId: store.getActiveAccountId,
       getNextApproved: store.getNextApproved,
       hasPreviewing: store.hasPreviewing,
@@ -116,7 +118,14 @@ describe("startPoster", () => {
 
     expect(queue.enqueue).toHaveBeenCalledWith(
       "us",
-      { action: "post_reply", postUrl: "https://threads.net/@a/post/1", draft: "hello", dryRun: true, reviewItemId: "review-1" },
+      {
+        action: "post_reply",
+        postUrl: "https://threads.net/@a/post/1",
+        draft: "hello",
+        dryRun: true,
+        reviewItemId: "review-1",
+        expectedHandle: "handle-account-1",
+      },
       90_000,
     );
     expect(store.updateReviewItem).toHaveBeenCalledTimes(1);

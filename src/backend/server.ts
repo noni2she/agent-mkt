@@ -3,7 +3,25 @@ import { ResponseEnvelopeSchema } from "../core/protocol.js";
 import { CommandQueue } from "./commandQueue.js";
 import { scoutAndReview } from "./coordinator.js";
 import { scoutBudget } from "./scoutTuning.js";
-import { getAgentDef, getReviewItem, getReviews, getTenant, getTenantConfig, onboardTenant, setAgentDef, setTenantConfig, updateReviewItem } from "./store.js";
+import {
+  createThreadsAccount,
+  getActiveAccount,
+  getActiveAccountId,
+  getAgentDef,
+  getReviewItem,
+  getReviews,
+  getTenant,
+  getTenantConfig,
+  getThreadsAccount,
+  hasPreviewing,
+  listThreadsAccounts,
+  onboardTenant,
+  setActiveAccountId,
+  setAgentDef,
+  setTenantConfig,
+  softDeleteThreadsAccount,
+  updateReviewItem,
+} from "./store.js";
 
 const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
 
@@ -74,11 +92,120 @@ export function createPollServer(queue: CommandQueue): Server {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/v1/accounts") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(listThreadsAccounts(TENANT)));
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/v1/accounts") {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      res.setHeader("Content-Type", "application/json");
+      try {
+        const body = JSON.parse(raw || "{}") as {
+          handle?: unknown;
+          display_name?: unknown;
+          persona?: unknown;
+          marketing_strategy?: unknown;
+          content_writing_rule?: unknown;
+        };
+        const handle = typeof body.handle === "string" ? body.handle.trim() : "";
+        const displayName = typeof body.display_name === "string" ? body.display_name.trim() : "";
+        const persona = typeof body.persona === "string" ? body.persona : "";
+        if (!handle || !displayName) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "handle and display_name are required" }));
+          return;
+        }
+        if (listThreadsAccounts(TENANT).some((account) => account.handle.toLowerCase() === handle.toLowerCase())) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "handle already exists" }));
+          return;
+        }
+        const account = createThreadsAccount({
+          tenant_id: TENANT,
+          handle,
+          display_name: displayName,
+          persona,
+          marketing_strategy: typeof body.marketing_strategy === "string" ? body.marketing_strategy : "",
+          content_writing_rule: typeof body.content_writing_rule === "string" ? body.content_writing_rule : "",
+        });
+        res.statusCode = 201;
+        res.end(JSON.stringify({ id: account.id }));
+      } catch {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "bad request" }));
+      }
+      return;
+    }
+
+    const accountDeleteMatch = url.pathname.match(/^\/api\/v1\/accounts\/([^/]+)$/);
+    if (req.method === "DELETE" && accountDeleteMatch) {
+      const id = decodeURIComponent(accountDeleteMatch[1]!);
+      const account = getThreadsAccount(id);
+      if (account?.tenant_id === TENANT) {
+        const wasActive = getActiveAccountId(TENANT) === id;
+        softDeleteThreadsAccount(id);
+        if (wasActive) setActiveAccountId(TENANT, listThreadsAccounts(TENANT)[0]?.id ?? null);
+      }
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/v1/accounts/active") {
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify(getActiveAccount(TENANT)));
+      return;
+    }
+
+    if (req.method === "PUT" && url.pathname === "/api/v1/accounts/active") {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      res.setHeader("Content-Type", "application/json");
+      try {
+        const body = JSON.parse(raw || "{}") as { id?: unknown };
+        const id = typeof body.id === "string" ? body.id : "";
+        const account = id ? getThreadsAccount(id) : null;
+        if (!account || account.tenant_id !== TENANT) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "invalid account id" }));
+          return;
+        }
+        const currentActiveId = getActiveAccountId(TENANT);
+        if (currentActiveId && hasPreviewing(TENANT, currentActiveId)) {
+          res.statusCode = 409;
+          res.end(JSON.stringify({
+            error: "active account has previewing items",
+            // previewing_count: store only exposes hasPreviewing boolean — return 1
+            // as "at least one" placeholder; do not display this as an exact count.
+            previewing_count: 1,
+          }));
+          return;
+        }
+        setActiveAccountId(TENANT, id);
+        res.statusCode = 200;
+        res.end(JSON.stringify({ ok: true }));
+      } catch {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "bad request" }));
+      }
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/scout") {
       const tenant = url.searchParams.get("tenant") ?? "us";
       let body = ""; for await (const c of req) body += c;
       let keyword = "";
       try { keyword = (JSON.parse(body || "{}").keyword as string) ?? ""; } catch {}
+      const activeAccount = getActiveAccount(TENANT);
+      if (!activeAccount) {
+        res.setHeader("Content-Type", "application/json");
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "no active threads account" }));
+        return;
+      }
       const cfg = getTenantConfig(tenant);
       const kw = keyword || cfg.keywords[0] || "";
       if (!kw) { res.statusCode = 400; res.end("no keyword"); return; }
@@ -87,6 +214,7 @@ export function createPollServer(queue: CommandQueue): Server {
       // fire-and-forget：背景跑，立刻回 202；UI 之後 poll /reviews
       void scoutAndReview(queue, tenant, {
         keyword: kw,
+        expectedHandle: activeAccount.handle,
         serpType: cfg.serpType,
         criteria: { minLikes: cfg.minLikes, maxAgeHours: cfg.maxAgeHours ?? undefined, excludeKeywords: cfg.excludeKeywords },
         budget: scoutBudget(),
@@ -169,8 +297,9 @@ export function createPollServer(queue: CommandQueue): Server {
 
     if (req.method === "GET" && url.pathname === "/reviews") {
       const tenant = url.searchParams.get("tenant") ?? "";
+      const accountId = url.searchParams.get("accountId") ?? getActiveAccountId(tenant);
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(getReviews(tenant)));
+      res.end(JSON.stringify(getReviews(tenant, accountId)));
       return;
     }
 

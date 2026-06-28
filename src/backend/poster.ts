@@ -1,11 +1,9 @@
 import { CommandQueue } from "./commandQueue.js";
 import { posterTuning } from "./posterTuning.js";
-import { getActiveAccountId, getNextApproved, hasPreviewing, sweepStalePreviews, updateReviewItem } from "./store.js";
+import { getActiveAccount, getActiveAccountId, getNextApproved, hasPreviewing, sweepStalePreviews, updateReviewItem } from "./store.js";
 import { SessionThrottle } from "../core/throttle.js";
 
 const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
-// TODO(Plan 10c Task 5): replace with enum value from protocol.ts ResponseEnvelopeSchema.
-const ACCOUNT_MISMATCH = "account_mismatch";
 
 /** 啟動發布 poster：常駐 loop，找 approved → 節流 → 下指令 → 標 sent。 */
 export function startPoster(queue: CommandQueue): { stop: () => void } {
@@ -62,8 +60,14 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
     try {
       const res = await queue.enqueue(
         TENANT,
-        // TODO(Plan 10c Task 5): add expectedHandle after CommandSchema supports it.
-        { action: "post_reply", postUrl: next.postUrl, draft: next.draft, dryRun: t.dryRun, reviewItemId: next.id },
+        {
+          action: "post_reply",
+          postUrl: next.postUrl,
+          draft: next.draft,
+          dryRun: t.dryRun,
+          reviewItemId: next.id,
+          expectedHandle: getActiveAccount(TENANT)!.handle,
+        },
         90_000,
       );
       if (res.status === "ok") {
@@ -76,8 +80,8 @@ export function startPoster(queue: CommandQueue): { stop: () => void } {
           sentInSession.set(activeId, nextSentCount);
           console.log(`[poster] ✅ 已發送 id=${next.id}（本 session ${nextSentCount}/${t.maxPerSession}）`);
         }
-      } else if ((res.status as string) === ACCOUNT_MISMATCH) {
-        console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=${ACCOUNT_MISMATCH} error=${res.error ?? ""}；保留 approved 由人工處理`);
+      } else if (res.status === "account_mismatch") {
+        console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=account_mismatch error=${res.error ?? ""}；保留 approved 由人工處理`);
       } else {
         console.warn(`[poster] ⚠️ 發送失敗 id=${next.id} status=${res.status} error=${res.error ?? ""}；保留 approved 由人工處理`);
       }

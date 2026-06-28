@@ -5,6 +5,7 @@ import { getActiveAccount, markProcessed, getProcessedIds } from "./store.js";
 
 export interface ScoutReviewOpts {
   keyword: string;
+  expectedHandle?: string;
   serpType?: "default" | "recent";
   criteria: Partial<ScoutCriteria>;
   budget: Partial<ScoutBudget>;
@@ -39,6 +40,7 @@ export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: 
         criteria: opts.criteria,
         budget: roundBudget,
         excludeIds,
+        expectedHandle: opts.expectedHandle ?? account.handle,
       },
       60_000,
     );

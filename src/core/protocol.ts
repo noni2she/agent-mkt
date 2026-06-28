@@ -27,6 +27,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
     criteria: ScoutCriteriaSchema.partial().optional(),
     budget: ScoutBudgetSchema.partial().optional(),
     excludeIds: z.array(z.string()).optional(), // 已處理貼文 id，content script 跳過
+    expectedHandle: z.string().optional(),
   }),
   z.object({
     action: z.literal("post_reply"),
@@ -34,6 +35,7 @@ export const CommandSchema = z.discriminatedUnion("action", [
     draft: z.string(),
     dryRun: z.boolean().optional(),
     reviewItemId: z.string().optional(),
+    expectedHandle: z.string().optional(),
   }),
 ]);
 export type Command = z.infer<typeof CommandSchema>;
@@ -57,7 +59,7 @@ export type Hello = z.infer<typeof HelloSchema>;
 export const ResponseEnvelopeSchema = z.object({
   type: z.literal("response"),
   id: z.string(),
-  status: z.enum(["ok", "fail", "element_not_found"]),
+  status: z.enum(["ok", "fail", "element_not_found", "account_mismatch"]),
   payload: z.unknown().optional(),
   error: z.string().optional(),
 });
