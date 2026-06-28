@@ -47,6 +47,8 @@ describe("posterTuning", () => {
 });
 
 describe("startPoster", () => {
+  const accountId = "account-1";
+
   async function loadPoster(opts: {
     tuning?: typeof baseTuning;
     hasPreviewing?: boolean;
@@ -54,15 +56,21 @@ describe("startPoster", () => {
     enqueueResult?: { type: "response"; id: string; status: "ok" };
   }) {
     const store = {
-      getNextApproved: vi.fn(() => opts.next ?? null),
-      hasPreviewing: vi.fn(() => opts.hasPreviewing ?? false),
-      sweepStalePreviews: vi.fn(() => 0),
+      getNextApproved: vi.fn((_tenant: string, _accountId: string) => opts.next ?? null),
+      hasPreviewing: vi.fn((_tenant: string, _accountId: string) => opts.hasPreviewing ?? false),
+      sweepStalePreviews: vi.fn((_tenant: string, _accountId: string, _timeoutMin: number) => 0),
       updateReviewItem: vi.fn(),
     };
     vi.doMock("./posterTuning.js", () => ({
       posterTuning: () => opts.tuning ?? baseTuning,
     }));
-    vi.doMock("./store.js", () => store);
+    vi.doMock("./store.js", () => ({
+      getNextApproved: (tenant: string) => store.getNextApproved(tenant, accountId),
+      hasPreviewing: (tenant: string) => store.hasPreviewing(tenant, accountId),
+      sweepStalePreviews: (tenant: string, timeoutMin: number) =>
+        store.sweepStalePreviews(tenant, accountId, timeoutMin),
+      updateReviewItem: store.updateReviewItem,
+    }));
     vi.doMock("../core/throttle.js", () => ({
       SessionThrottle: vi.fn().mockImplementation(() => ({
         sessionExpired: vi.fn(() => false),
@@ -83,7 +91,7 @@ describe("startPoster", () => {
     await vi.advanceTimersByTimeAsync(1);
     poster.stop();
 
-    expect(store.sweepStalePreviews).toHaveBeenCalledWith("us", 15);
+    expect(store.sweepStalePreviews).toHaveBeenCalledWith("us", accountId, 15);
     expect(store.getNextApproved).not.toHaveBeenCalled();
     expect(queue.enqueue).not.toHaveBeenCalled();
   });

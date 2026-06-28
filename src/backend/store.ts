@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import type { AgentDef } from "../core/prompt.js";
 import { loadAgentDefFromFiles } from "./agentDef.js";
@@ -112,8 +113,114 @@ export function getTenantConfig(tenant: string): TenantConfig {
 
 export function setTenantConfig(tenant: string, config: TenantConfig): void {
   getDb()
-    .prepare(`INSERT OR REPLACE INTO tenant_config (tenant_id, config_json, updated_at) VALUES (?, ?, ?)`)
+    .prepare(
+      `INSERT INTO tenant_config (tenant_id, config_json, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(tenant_id) DO UPDATE SET
+         config_json = excluded.config_json,
+         updated_at = excluded.updated_at`,
+    )
     .run(tenant, JSON.stringify(config), new Date().toISOString());
+}
+
+export interface ThreadsAccount {
+  id: string;
+  tenant_id: string;
+  handle: string;
+  display_name: string;
+  persona: string;
+  marketing_strategy: string;
+  content_writing_rule: string;
+  created_at: string;
+}
+
+export function listThreadsAccounts(tenant: string): ThreadsAccount[] {
+  return getDb()
+    .prepare(
+      `SELECT id, tenant_id, handle, display_name, persona, marketing_strategy,
+              content_writing_rule, created_at
+       FROM threads_account
+       WHERE tenant_id = ? AND deleted_at IS NULL
+       ORDER BY created_at ASC`,
+    )
+    .all(tenant) as ThreadsAccount[];
+}
+
+export function getThreadsAccount(id: string): ThreadsAccount | null {
+  const row = getDb()
+    .prepare(
+      `SELECT id, tenant_id, handle, display_name, persona, marketing_strategy,
+              content_writing_rule, created_at
+       FROM threads_account
+       WHERE id = ? AND deleted_at IS NULL`,
+    )
+    .get(id) as ThreadsAccount | undefined;
+  return row ?? null;
+}
+
+export function createThreadsAccount(input: Omit<ThreadsAccount, "id" | "created_at">): ThreadsAccount {
+  const account: ThreadsAccount = {
+    ...input,
+    id: randomUUID(),
+    created_at: new Date().toISOString(),
+  };
+  getDb()
+    .prepare(
+      `INSERT INTO threads_account
+       (id, tenant_id, handle, display_name, persona, marketing_strategy, content_writing_rule, created_at)
+       VALUES (@id, @tenant_id, @handle, @display_name, @persona, @marketing_strategy, @content_writing_rule, @created_at)`,
+    )
+    .run(account);
+  return account;
+}
+
+type ThreadsAccountPatch = Partial<
+  Pick<ThreadsAccount, "display_name" | "persona" | "marketing_strategy" | "content_writing_rule">
+>;
+
+export function updateThreadsAccount(id: string, patch: ThreadsAccountPatch): void {
+  const columns: Array<keyof ThreadsAccountPatch> = [
+    "display_name",
+    "persona",
+    "marketing_strategy",
+    "content_writing_rule",
+  ];
+  const entries = columns
+    .filter((column) => patch[column] !== undefined)
+    .map((column) => [column, patch[column]] as const);
+  if (entries.length === 0) return;
+  getDb()
+    .prepare(`UPDATE threads_account SET ${entries.map(([column]) => `${column} = ?`).join(", ")} WHERE id = ?`)
+    .run(...entries.map(([, value]) => value), id);
+}
+
+export function softDeleteThreadsAccount(id: string): void {
+  getDb().prepare(`UPDATE threads_account SET deleted_at = ? WHERE id = ?`).run(new Date().toISOString(), id);
+}
+
+export function getActiveAccountId(tenant: string): string | null {
+  const row = getDb()
+    .prepare(`SELECT active_threads_account_id FROM tenant_config WHERE tenant_id = ?`)
+    .get(tenant) as { active_threads_account_id: string | null } | undefined;
+  return row?.active_threads_account_id ?? null;
+}
+
+export function setActiveAccountId(tenant: string, accountId: string | null): void {
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `INSERT INTO tenant_config (tenant_id, config_json, updated_at, active_threads_account_id)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(tenant_id) DO UPDATE SET
+         active_threads_account_id = excluded.active_threads_account_id,
+         updated_at = excluded.updated_at`,
+    )
+    .run(tenant, JSON.stringify(DEFAULT_CONFIG), now, accountId);
+}
+
+export function getActiveAccount(tenant: string): ThreadsAccount | null {
+  const accountId = getActiveAccountId(tenant);
+  return accountId ? getThreadsAccount(accountId) : null;
 }
 
 /** 取某租戶的 agent 定義。DB 無資料時用 configs/agent/*.md seed 後回傳。 */
@@ -188,6 +295,7 @@ export function onboardTenant(tenant: string, input: OnboardInput): void {
 export interface ReviewItemRow {
   id: string;
   tenant_id: string;
+  threads_account_id: string;
   kind: string;
   post_id: string;
   post_json: string;
@@ -204,8 +312,8 @@ export function saveReviewItem(row: ReviewItemRow): void {
   getDb()
     .prepare(
       `INSERT OR REPLACE INTO review_item
-       (id, tenant_id, kind, post_id, post_json, relevant, reason, draft, status, created_at)
-       VALUES (@id, @tenant_id, @kind, @post_id, @post_json, @relevant, @reason, @draft, @status, @created_at)`,
+       (id, tenant_id, threads_account_id, kind, post_id, post_json, relevant, reason, draft, status, created_at)
+       VALUES (@id, @tenant_id, @threads_account_id, @kind, @post_id, @post_json, @relevant, @reason, @draft, @status, @created_at)`,
     )
     .run(row);
 }
@@ -273,23 +381,27 @@ export function updateReviewItem(id: string, patch: { status?: string; draft?: s
 }
 
 /** 是否已有 dry-run 草稿正在等待人工確認。 */
-export function hasPreviewing(tenant: string): boolean {
+export function hasPreviewing(tenant: string, accountId: string): boolean {
   const row = getDb()
-    .prepare(`SELECT 1 FROM review_item WHERE tenant_id = ? AND status = 'previewing' LIMIT 1`)
-    .get(tenant);
+    .prepare(
+      `SELECT 1 FROM review_item
+       WHERE tenant_id = ? AND threads_account_id = ? AND status = 'previewing'
+       LIMIT 1`,
+    )
+    .get(tenant, accountId);
   return row != null;
 }
 
 /** 將逾時的 previewing 項目標成 skipped，回傳清掃筆數。 */
-export function sweepStalePreviews(tenant: string, timeoutMin: number): number {
+export function sweepStalePreviews(tenant: string, accountId: string, timeoutMin: number): number {
   const cutoff = new Date(Date.now() - timeoutMin * 60_000).toISOString();
   const result = getDb()
     .prepare(
       `UPDATE review_item
        SET status = 'skipped'
-       WHERE tenant_id = ? AND status = 'previewing' AND previewing_at < ?`,
+       WHERE tenant_id = ? AND threads_account_id = ? AND status = 'previewing' AND previewing_at < ?`,
     )
-    .run(tenant, cutoff);
+    .run(tenant, accountId, cutoff);
   return result.changes;
 }
 
@@ -322,14 +434,15 @@ export interface NextApproved {
 }
 
 /** 取最舊一筆 status='approved' 的審核項，給 poster 發送；無則 null。 */
-export function getNextApproved(tenant: string): NextApproved | null {
+export function getNextApproved(tenant: string, accountId: string): NextApproved | null {
   const row = getDb()
     .prepare(
       `SELECT id, post_json, draft FROM review_item
-       WHERE tenant_id = ? AND status = 'approved' AND TRIM(COALESCE(draft,'')) != ''
+       WHERE tenant_id = ? AND threads_account_id = ?
+         AND status = 'approved' AND TRIM(COALESCE(draft,'')) != ''
        ORDER BY created_at ASC LIMIT 1`,
     )
-    .get(tenant) as { id: string; post_json: string; draft: string } | undefined;
+    .get(tenant, accountId) as { id: string; post_json: string; draft: string } | undefined;
   if (!row) return null;
   try {
     const post = JSON.parse(row.post_json) as { url?: string };
