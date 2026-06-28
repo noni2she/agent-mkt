@@ -43,6 +43,80 @@ export interface TenantInfo {
   onboarded: boolean;
 }
 
+export interface ThreadsAccount {
+  id: string;
+  tenant_id: string;
+  handle: string;
+  display_name: string;
+  persona: string;
+  marketing_strategy: string;
+  content_writing_rule: string;
+  created_at: string;
+}
+
+export interface CreateAccountInput {
+  handle: string;
+  display_name: string;
+  persona: string;
+  marketing_strategy?: string;
+  content_writing_rule?: string;
+}
+
+export class PreviewingBlockError extends Error {
+  readonly previewingCount: number;
+
+  constructor(previewingCount: number) {
+    super("目前帳號仍有預覽中的項目，請先處理後再切換帳號");
+    this.name = "PreviewingBlockError";
+    this.previewingCount = previewingCount;
+  }
+}
+
+async function responseError(response: Response, fallback: string): Promise<Error> {
+  const body = await response.json().catch(() => null) as { error?: unknown } | null;
+  return new Error(typeof body?.error === "string" ? body.error : fallback);
+}
+
+export async function listAccounts(): Promise<ThreadsAccount[]> {
+  const r = await fetch(`${BASE}/api/v1/accounts`);
+  if (!r.ok) throw await responseError(r, `list accounts failed: ${r.status}`);
+  return r.json() as Promise<ThreadsAccount[]>;
+}
+
+export async function createAccount(input: CreateAccountInput): Promise<{ id: string }> {
+  const r = await fetch(`${BASE}/api/v1/accounts`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!r.ok) throw await responseError(r, `create account failed: ${r.status}`);
+  return r.json() as Promise<{ id: string }>;
+}
+
+export async function deleteAccount(id: string): Promise<void> {
+  const r = await fetch(`${BASE}/api/v1/accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!r.ok) throw await responseError(r, `delete account failed: ${r.status}`);
+}
+
+export async function getActiveAccount(): Promise<ThreadsAccount | null> {
+  const r = await fetch(`${BASE}/api/v1/accounts/active`);
+  if (!r.ok) throw await responseError(r, `get active account failed: ${r.status}`);
+  return r.json() as Promise<ThreadsAccount | null>;
+}
+
+export async function setActiveAccount(id: string): Promise<void> {
+  const r = await fetch(`${BASE}/api/v1/accounts/active`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ id }),
+  });
+  if (r.status === 409) {
+    const body = await r.json().catch(() => null) as { previewing_count?: unknown } | null;
+    throw new PreviewingBlockError(typeof body?.previewing_count === "number" ? body.previewing_count : 1);
+  }
+  if (!r.ok) throw await responseError(r, `set active account failed: ${r.status}`);
+}
+
 export async function fetchConfig(): Promise<TenantConfig> {
   return (await fetch(`${BASE}/config?tenant=${TENANT}`)).json();
 }
