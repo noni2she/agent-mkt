@@ -20,6 +20,7 @@ import {
   setAgentDef,
   setTenantConfig,
   softDeleteThreadsAccount,
+  updateThreadsAccount,
   updateReviewItem,
 } from "./store.js";
 
@@ -27,6 +28,8 @@ const TENANT = "us"; // 單一安裝＝單一租戶；多租戶推遲
 
 /** 建立 polling HTTP server：GET /poll?tenant=us、POST /result。 */
 export function createPollServer(queue: CommandQueue): Server {
+  let accountMismatch: { actual: string; expected: string } | null = null;
+
   return createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -141,6 +144,34 @@ export function createPollServer(queue: CommandQueue): Server {
     }
 
     const accountDeleteMatch = url.pathname.match(/^\/api\/v1\/accounts\/([^/]+)$/);
+    if (req.method === "PUT" && accountDeleteMatch) {
+      const id = decodeURIComponent(accountDeleteMatch[1]!);
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      res.setHeader("Content-Type", "application/json");
+      try {
+        const account = getThreadsAccount(id);
+        if (!account || account.tenant_id !== TENANT) {
+          res.statusCode = 404;
+          res.end(JSON.stringify({ error: "account not found" }));
+          return;
+        }
+        const body = JSON.parse(raw || "{}") as Record<string, unknown>;
+        const patch = {
+          ...(typeof body.persona === "string" ? { persona: body.persona } : {}),
+          ...(typeof body.marketing_strategy === "string" ? { marketing_strategy: body.marketing_strategy } : {}),
+          ...(typeof body.content_writing_rule === "string" ? { content_writing_rule: body.content_writing_rule } : {}),
+        };
+        updateThreadsAccount(id, patch);
+        res.statusCode = 204;
+        res.end();
+      } catch {
+        res.statusCode = 400;
+        res.end(JSON.stringify({ error: "bad request" }));
+      }
+      return;
+    }
+
     if (req.method === "DELETE" && accountDeleteMatch) {
       const id = decodeURIComponent(accountDeleteMatch[1]!);
       const account = getThreadsAccount(id);
@@ -185,6 +216,7 @@ export function createPollServer(queue: CommandQueue): Server {
           return;
         }
         setActiveAccountId(TENANT, id);
+        accountMismatch = null;
         res.statusCode = 200;
         res.end(JSON.stringify({ ok: true }));
       } catch {
@@ -229,7 +261,7 @@ export function createPollServer(queue: CommandQueue): Server {
     if (req.method === "GET" && url.pathname === "/scout/status") {
       const tenant = url.searchParams.get("tenant") ?? "us";
       res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify({ running: queue.isScoutActive(tenant) }));
+      res.end(JSON.stringify({ running: queue.isScoutActive(tenant), accountMismatch }));
       return;
     }
 
@@ -285,6 +317,12 @@ export function createPollServer(queue: CommandQueue): Server {
       for await (const chunk of req) body += chunk;
       try {
         const parsed = ResponseEnvelopeSchema.parse(JSON.parse(body));
+        if (parsed.status === "account_mismatch") {
+          const match = parsed.error?.match(/actual=([^,]+),\s*expected=(.+)$/i);
+          accountMismatch = match ? { actual: match[1]!.trim(), expected: match[2]!.trim() } : { actual: "unknown", expected: getActiveAccount(TENANT)?.handle ?? "unknown" };
+        } else if (parsed.status === "ok") {
+          accountMismatch = null;
+        }
         queue.resolveResult(parsed);
         res.statusCode = 204;
         res.end();

@@ -1,6 +1,6 @@
 import type { HTMLAttributes } from "react";
 
-type Status = "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
+type Status = "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" | "account_mismatch";
 
 const statusTone: Record<Status, string> = {
   pending: "warning",
@@ -12,6 +12,7 @@ const statusTone: Record<Status, string> = {
   later: "info",
   blocked: "danger",
   relevant: "brand",
+  account_mismatch: "danger",
 };
 
 const labels: Record<Status, string> = {
@@ -24,6 +25,7 @@ const labels: Record<Status, string> = {
   later: "稍後再看",
   blocked: "命中硬規則",
   relevant: "相關",
+  account_mismatch: "帳號不符",
 };
 
 const tones: Record<string, { chip: string; dot: string }> = {

@@ -62,6 +62,11 @@ export interface CreateAccountInput {
   content_writing_rule?: string;
 }
 
+export interface AccountMismatch {
+  actual: string;
+  expected: string;
+}
+
 export class PreviewingBlockError extends Error {
   readonly previewingCount: number;
 
@@ -117,6 +122,15 @@ export async function setActiveAccount(id: string): Promise<void> {
   if (!r.ok) throw await responseError(r, `set active account failed: ${r.status}`);
 }
 
+export async function updateAccount(id: string, patch: Pick<ThreadsAccount, "persona" | "marketing_strategy" | "content_writing_rule">): Promise<void> {
+  const r = await fetch(`${BASE}/api/v1/accounts/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw await responseError(r, `update account failed: ${r.status}`);
+}
+
 export async function fetchConfig(): Promise<TenantConfig> {
   return (await fetch(`${BASE}/config?tenant=${TENANT}`)).json();
 }
@@ -164,14 +178,14 @@ export async function stopScout(): Promise<void> {
   if (!r.ok) throw new Error(`stop scout failed: ${r.status}`);
 }
 
-export async function fetchScoutStatus(): Promise<{ running: boolean }> {
+export async function fetchScoutStatus(): Promise<{ running: boolean; accountMismatch?: AccountMismatch | null }> {
   const r = await fetch(`${BASE}/scout/status?tenant=${TENANT}`);
   if (!r.ok) throw new Error(`fetch scout status failed: ${r.status}`);
   return r.json() as Promise<{ running: boolean }>;
 }
 
-export async function fetchReviews(): Promise<ReviewItem[]> {
-  const r = await fetch(`${BASE}/reviews?tenant=${TENANT}`);
+export async function fetchReviews(accountId: string): Promise<ReviewItem[]> {
+  const r = await fetch(`${BASE}/reviews?tenant=${TENANT}&accountId=${encodeURIComponent(accountId)}`);
   if (!r.ok) throw new Error(`fetch reviews failed: ${r.status}`);
   return r.json() as Promise<ReviewItem[]>;
 }

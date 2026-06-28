@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchReviews, previewResolve, updateReview, type ReviewItem } from "./api";
+import { fetchReviews, fetchScoutStatus, getActiveAccount, previewResolve, updateReview, type AccountMismatch, type ReviewItem, type ThreadsAccount } from "./api";
 import { AlertBar, Button, Card, MetricChip, StatusChip, TextArea } from "./components";
 import { Check, Inbox, Lightbulb, RefreshCw, X } from "./icons";
 
@@ -22,9 +22,9 @@ function safeHandle(handle: string): string {
   return handle?.replace(/^@/, "") || "unknown";
 }
 
-function displayStatus(status: string): "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" {
-  if (["pending", "approved", "previewing", "sent", "skipped", "rejected", "later", "blocked", "relevant"].includes(status)) {
-    return status as "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant";
+function displayStatus(status: string): "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" | "account_mismatch" {
+  if (["pending", "approved", "previewing", "sent", "skipped", "rejected", "later", "blocked", "relevant", "account_mismatch"].includes(status)) {
+    return status as "pending" | "approved" | "previewing" | "sent" | "skipped" | "rejected" | "later" | "blocked" | "relevant" | "account_mismatch";
   }
   return "pending";
 }
@@ -36,6 +36,8 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [active, setActive] = useState<ThreadsAccount | null>(null);
+  const [mismatch, setMismatch] = useState<AccountMismatch | null>(null);
 
   // 計數從資料推導（不用本地累加，避免漂移）：已審=已決定數、通過=核准數。
   const reviewedCount = useMemo(() => items.filter((i) => i.status !== "pending").length, [items]);
@@ -51,7 +53,16 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
     if (showLoading) setLoading(true);
     setError(null);
     try {
-      const data = await fetchReviews();
+      const [nextActive, status] = await Promise.all([getActiveAccount(), fetchScoutStatus()]);
+      setActive(nextActive);
+      setMismatch(status.accountMismatch ?? null);
+      if (!nextActive) {
+        setItems([]);
+        setDrafts({});
+        onCountChange?.(0);
+        return;
+      }
+      const data = await fetchReviews(nextActive.id);
       // 顯示全部相關項目（含已決定，保留審核紀錄）；徽章只計待審。
       const reviewable = data.filter((item) => item.relevant !== false && item.draft.trim().length > 0);
       setItems(reviewable);
@@ -162,11 +173,14 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
 
   if (!items.length) {
     return (
-      <div className="grid flex-1 place-items-center p-7 text-center">
+      <div className="flex flex-1 flex-col gap-4 p-4">
+        {mismatch ? <AlertBar tone="account-mismatch" actual={mismatch.actual} expected={mismatch.expected} /> : null}
+        <div className="grid flex-1 place-items-center text-center">
         <div>
           <Inbox width={38} height={38} className="mx-auto mb-3 text-[var(--text-faint)]" />
-          <h2 className="[font:var(--text-h2)] text-[var(--text-strong)]">沒有審核項目</h2>
-          <p className="mt-2 max-w-[280px] [font:var(--text-small)] text-[var(--text-muted)]">跑完海巡後，符合條件的項目會出現在這裡。</p>
+          <h2 className="[font:var(--text-h2)] text-[var(--text-strong)]">{active ? "沒有審核項目" : "請先新增並選擇一個帳號"}</h2>
+          {active ? <p className="mt-2 max-w-[280px] [font:var(--text-small)] text-[var(--text-muted)]">跑完海巡後，符合條件的項目會出現在這裡。</p> : null}
+        </div>
         </div>
       </div>
     );
@@ -186,6 +200,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="flex flex-col gap-3">
+          {mismatch ? <AlertBar tone="account-mismatch" actual={mismatch.actual} expected={mismatch.expected} /> : null}
           {fatigue ? (
             <AlertBar tone="warning" title="審核節奏偏快">
               目前通過率偏高，送出前再確認語氣與關聯性。
@@ -208,6 +223,7 @@ export default function ReviewQueue({ onCountChange }: ReviewQueueProps) {
                     <span className="mt-1 block font-[var(--font-mono)] text-[12px] leading-none text-[var(--text-faint)]">{relativeAge(item.post.posted_at)}</span>
                   </div>
                   <div className="flex shrink-0 items-center gap-[6px]">
+                    <StatusChip tone="brand">@{active ? safeHandle(active.handle) : "unknown"}</StatusChip>
                     <StatusChip status={displayStatus(item.status)} />
                     <MetricChip kind="likes" value={item.post.likes ?? 0} />
                     <MetricChip kind="replies" value={item.post.replies ?? 0} />

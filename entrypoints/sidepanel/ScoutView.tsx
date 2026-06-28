@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchConfig, fetchScoutStatus, runScout, saveConfig, stopScout, type TenantConfig } from "./api";
+import { fetchConfig, fetchScoutStatus, getActiveAccount, runScout, saveConfig, stopScout, type AccountMismatch, type TenantConfig, type ThreadsAccount } from "./api";
 import { AlertBar, Badge, Button, Card } from "./components";
 import { Radar, RefreshCw, X } from "./icons";
 
@@ -42,6 +42,8 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [active, setActive] = useState<ThreadsAccount | null>(null);
+  const [mismatch, setMismatch] = useState<AccountMismatch | null>(null);
 
   const dirty = useMemo(() => configKey(config) !== savedKey, [config, savedKey]);
 
@@ -49,8 +51,10 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchConfig();
+      const [data, nextActive, status] = await Promise.all([fetchConfig(), getActiveAccount(), fetchScoutStatus()]);
       setConfig(data);
+      setActive(nextActive);
+      setMismatch(status.accountMismatch ?? null);
       setSavedKey(configKey(data));
       setExcludeInput(data.excludeKeywords.join("\n"));
     } catch (e) {
@@ -97,9 +101,12 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
   }, []);
 
   const startScout = useCallback(async () => {
-    setRunning(true);
     setError(null);
     try {
+      const nextActive = await getActiveAccount();
+      setActive(nextActive);
+      if (!nextActive) throw new Error("請先新增並選擇一個帳號");
+      setRunning(true);
       await persist();
       await runScout(config.keywords[0]);
     } catch (e) {
@@ -109,14 +116,17 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
   }, [config.keywords, persist]);
 
   useEffect(() => {
-    if (!running) return;
     let cancelled = false;
     const checkStatus = async () => {
       try {
-        const status = await fetchScoutStatus();
-        if (cancelled || status.running) return;
-        setRunning(false);
-        onScoutComplete?.();
+        const [status, nextActive] = await Promise.all([fetchScoutStatus(), getActiveAccount()]);
+        if (cancelled) return;
+        setActive(nextActive);
+        setMismatch(status.accountMismatch ?? null);
+        if (running && !status.running) {
+          setRunning(false);
+          onScoutComplete?.();
+        }
       } catch {
         // Keep the local stop control available while the backend is briefly unreachable.
       }
@@ -160,8 +170,10 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
         <div>
           <h2 className="[font:var(--fw-bold)_20px/1.2_var(--font-sans)] text-[var(--text-strong)]">海巡設定</h2>
           <p className="mt-1 [font:var(--fs-sm)/1.6_var(--font-sans)] text-[var(--text-muted)]">在 Threads 上搜尋熱門貼文，依門檻過濾後加入審核佇列。</p>
+          <p className="mt-1 [font:var(--fs-sm)/1.6_var(--font-sans)] text-[var(--brand-text)]">{active ? `目前以 @${active.handle.replace(/^@/, "")} 身份海巡` : "請先新增並選擇一個帳號"}</p>
         </div>
 
+        {mismatch ? <AlertBar tone="account-mismatch" actual={mismatch.actual} expected={mismatch.expected} /> : null}
         {error ? <AlertBar tone="warning" title="後端尚未連線">{error}</AlertBar> : null}
         {message ? <AlertBar tone="success">{message}</AlertBar> : null}
 
@@ -270,7 +282,7 @@ export default function ScoutView({ onScoutComplete }: ScoutViewProps) {
             size="lg"
             full
             icon={running ? <X /> : <Radar />}
-            disabled={stopping || (!running && !config.keywords.length)}
+            disabled={stopping || (!running && (!config.keywords.length || !active))}
             onClick={() => void (running ? stopActiveScout() : startScout())}
           >
             {running ? (stopping ? "中止中..." : "中止海巡") : "執行海巡"}
