@@ -1,7 +1,7 @@
 import type { CommandQueue } from "./commandQueue.js";
 import type { ScoutCandidate, ScoutCriteria, ScoutBudget } from "../core/protocol.js";
 import { runReview } from "./orchestrator.js";
-import { markProcessed, getProcessedIds } from "./store.js";
+import { getActiveAccount, markProcessed, getProcessedIds } from "./store.js";
 
 export interface ScoutReviewOpts {
   keyword: string;
@@ -14,6 +14,9 @@ export interface ScoutReviewOpts {
 
 /** scout → LLM 篩 → 相關不足量就再 scout（跳過已處理），直到達標/達輪數/無新貼文。 */
 export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: ScoutReviewOpts): Promise<number> {
+  const account = getActiveAccount(tenant);
+  if (!account) throw new Error("no active threads account; complete setup first");
+
   const maxRounds = opts.maxRounds ?? 5;
   const fresh = process.env.DEV_FRESH === "1"; // dev：忽略歷史已處理，方便重測
   let totalRelevant = 0;
@@ -53,7 +56,7 @@ export async function scoutAndReview(queue: CommandQueue, tenant: string, opts: 
       break;
     }
     markProcessed(tenant, posts.map((p) => p.id));
-    const relevant = await runReview(posts, opts.keyword, tenant);
+    const relevant = await runReview(posts, opts.keyword, tenant, account);
     totalRelevant += relevant.length;
     console.log(`[refill] 第 ${round} 輪：${posts.length} 篇 → 相關 ${relevant.length}（累計 ${totalRelevant}/${opts.targetRelevant}）`);
     if (totalRelevant >= opts.targetRelevant) {

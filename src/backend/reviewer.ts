@@ -1,7 +1,8 @@
 import { Agent, run } from "@openai/agents";
 import { z } from "zod";
 import type { ScoutCandidate } from "../core/protocol.js";
-import { buildReviewerInstructions, type AgentDef } from "../core/prompt.js";
+import { buildReviewerInstructions as buildPromptInstructions, type AgentDef } from "../core/prompt.js";
+import type { ThreadsAccount } from "./store.js";
 
 export const ReviewOutputSchema = z.object({
   relevant: z.boolean(),
@@ -10,15 +11,29 @@ export const ReviewOutputSchema = z.object({
 });
 export type ReviewOutput = z.infer<typeof ReviewOutputSchema>;
 
+/** 組 reviewer instructions：帳號人格/策略/規則 + 租戶共用產品。 */
+export function buildReviewerInstructions(def: AgentDef, account: ThreadsAccount, keyword: string): string {
+  return buildPromptInstructions(
+    {
+      persona: account.persona,
+      ownedProduct: def.ownedProduct,
+      marketingStrategy: account.marketing_strategy,
+      contentWritingRule: account.content_writing_rule,
+    },
+    keyword,
+  );
+}
+
 /** 對一篇候選貼文：判斷相關性 + 寫草稿（單次 LLM 呼叫，每篇 token 上限）。 */
 export async function reviewCandidate(
   candidate: ScoutCandidate,
   def: AgentDef,
+  account: ThreadsAccount,
   keyword: string,
 ): Promise<ReviewOutput> {
   const agent = new Agent({
     name: "reply-reviewer",
-    instructions: buildReviewerInstructions(def, keyword),
+    instructions: buildReviewerInstructions(def, account, keyword),
     model: process.env.OPENAI_MODEL ?? "gpt-4o",
     outputType: ReviewOutputSchema,
     modelSettings: { maxTokens: 1000 },
