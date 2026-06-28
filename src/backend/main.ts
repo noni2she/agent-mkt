@@ -4,6 +4,7 @@ import { startPoster } from "./poster.js";
 import { createPollServer } from "./server.js";
 import { scoutBudget } from "./scoutTuning.js";
 import { getTenantConfig, type TenantConfig } from "./store.js";
+import { runDefaultAccountMigration } from "./storeMigration.js";
 
 const PORT = Number(process.env.HTTP_PORT ?? 18900);
 
@@ -25,6 +26,7 @@ function criteriaFor(config: TenantConfig) {
 const queue = new CommandQueue();
 const server = createPollServer(queue);
 
+runDefaultAccountMigration("us");
 server.listen(PORT, () => {
   console.log(`✅ agent-mkt backend polling server on http://127.0.0.1:${PORT}`);
 

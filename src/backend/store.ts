@@ -50,9 +50,34 @@ export function getDb(): Database.Database {
       onboarded_at TEXT,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS threads_account (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      handle TEXT NOT NULL,
+      display_name TEXT NOT NULL,
+      persona TEXT NOT NULL DEFAULT '',
+      marketing_strategy TEXT NOT NULL DEFAULT '',
+      content_writing_rule TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      deleted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_threads_account_tenant
+      ON threads_account(tenant_id) WHERE deleted_at IS NULL;
   `);
   try {
     db.exec(`ALTER TABLE review_item ADD COLUMN previewing_at TEXT;`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/duplicate column/i.test(msg)) throw e;
+  }
+  try {
+    db.exec(`ALTER TABLE tenant_config ADD COLUMN active_threads_account_id TEXT;`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/duplicate column/i.test(msg)) throw e;
+  }
+  try {
+    db.exec(`ALTER TABLE review_item ADD COLUMN threads_account_id TEXT;`);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (!/duplicate column/i.test(msg)) throw e;
